@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Entrenamiento — Esteban</title>
+<style>
+  :root {
+    --surf: #1D9E75;
+    --surf-light: #E1F5EE;
+    --surf-dark: #085041;
+    --gym: #7F77DD;
+    --gym-light: #EEEDFE;
+    --gym-dark: #3C3489;
+    --trail: #BA7517;
+    --trail-light: #FAEEDA;
+    --trail-dark: #633806;
+    --rest: #888780;
+    --rest-light: #F1EFE8;
+    --rest-dark: #2C2C2A;
+    --mob: #D85A30;
+    --mob-light: #FAECE7;
+    --mob-dark: #4A1B0C;
+    --bg: #f8f7f4;
+    --card: #ffffff;
+    --border: rgba(0,0,0,0.08);
+    --text: #1a1a1a;
+    --muted: #666660;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* HEADER */
+  .header { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 16px 10px; position: sticky; top: 0; z-index: 100; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .app-title { font-size: 17px; font-weight: 600; color: var(--text); }
+  .month-nav { display: flex; align-items: center; gap: 10px; }
+  .month-nav button { background: none; border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 13px; cursor: pointer; color: var(--text); }
+  .month-nav button:active { background: var(--bg); }
+  .month-label { font-size: 15px; font-weight: 600; min-width: 140px; text-align: center; }
+
+  /* LEGEND */
+  .legend { display: flex; gap: 10px; flex-wrap: wrap; padding: 0 16px 10px; }
+  .leg { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+  .leg-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+  /* WEEK LABELS */
+  .week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; padding: 0 12px; margin-bottom: 4px; }
+  .week-day-label { text-align: center; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 0; }
+
+  /* CALENDAR GRID */
+  .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; padding: 0 12px 12px; }
+  .cal-day { min-height: 56px; border-radius: var(--radius-sm); background: var(--card); border: 1px solid var(--border); padding: 4px; cursor: pointer; transition: transform 0.1s; position: relative; overflow: hidden; }
+  .cal-day:active { transform: scale(0.97); }
+  .cal-day.empty { background: transparent; border-color: transparent; cursor: default; }
+  .cal-day.today { border-color: var(--gym); border-width: 2px; }
+  .cal-day-num { font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
+  .cal-day.today .cal-day-num { color: var(--gym); }
+  .cal-pill { font-size: 9px; font-weight: 600; border-radius: 3px; padding: 2px 4px; margin-bottom: 2px; line-height: 1.2; }
+  .pill-surf { background: var(--surf-light); color: var(--surf-dark); }
+  .pill-gym { background: var(--gym-light); color: var(--gym-dark); }
+  .pill-trail { background: var(--trail-light); color: var(--trail-dark); }
+  .pill-rest { background: var(--rest-light); color: var(--rest-dark); }
+  .pill-mob { background: var(--mob-light); color: var(--mob-dark); }
+  .done-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--surf); position: absolute; top: 4px; right: 4px; }
+
+  /* BOTTOM SHEET */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; }
+  .overlay.open { display: block; }
+  .sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-radius: 20px 20px 0 0; z-index: 201; max-height: 90vh; overflow-y: auto; padding-bottom: 32px; transform: translateY(100%); transition: transform 0.3s ease; }
+  .sheet.open { transform: translateY(0); }
+  .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 0; }
+  .sheet-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); }
+  .sheet-date { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  .sheet-title { font-size: 18px; font-weight: 700; }
+  .sheet-body { padding: 14px 16px; }
+
+  /* SESSION BLOCKS */
+  .session-block { background: var(--bg); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px; }
+  .session-block-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .session-block.surf .session-block-title { color: var(--surf); }
+  .session-block.gym .session-block-title { color: var(--gym); }
+  .session-block.trail .session-block-title { color: var(--trail); }
+  .session-block.rest .session-block-title { color: var(--rest); }
+  .session-block.mob .session-block-title { color: var(--mob); }
+
+  /* EXERCISE ROWS */
+  .ex-row { display: flex; align-items: flex-start; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); gap: 8px; }
+  .ex-row:last-child { border-bottom: none; }
+  .ex-info { flex: 1; }
+  .ex-name { font-size: 14px; font-weight: 500; margin-bottom: 1px; }
+  .ex-sub { font-size: 11px; color: var(--muted); }
+  .ex-target { font-size: 12px; color: var(--gym-dark); background: var(--gym-light); padding: 3px 8px; border-radius: 10px; white-space: nowrap; font-weight: 600; }
+  .ex-target.trail-tag { color: var(--trail-dark); background: var(--trail-light); }
+  .ex-target.surf-tag { color: var(--surf-dark); background: var(--surf-light); }
+
+  /* LOG SECTION */
+  .log-section { margin-top: 12px; }
+  .log-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .log-textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 14px; font-family: inherit; color: var(--text); background: var(--bg); resize: none; min-height: 80px; }
+  .log-textarea:focus { outline: none; border-color: var(--gym); }
+  .log-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .log-input { flex: 1; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 13px; font-family: inherit; color: var(--text); background: var(--bg); }
+  .log-input:focus { outline: none; border-color: var(--gym); }
+  .save-btn { width: 100%; background: var(--gym); color: white; border: none; border-radius: var(--radius-sm); padding: 13px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 12px; }
+  .save-btn:active { opacity: 0.85; }
+  .saved-note { font-size: 13px; color: var(--muted); background: var(--bg); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 8px; white-space: pre-wrap; }
+
+  /* TRAIL INFO */
+  .trail-card { border: 1px solid var(--trail-light); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 8px; }
+  .trail-name { font-size: 15px; font-weight: 700; color: var(--trail-dark); margin-bottom: 6px; }
+  .trail-stats { display: flex; gap: 16px; }
+  .trail-stat { }
+  .trail-stat-val { font-size: 16px; font-weight: 700; color: var(--text); }
+  .trail-stat-label { font-size: 11px; color: var(--muted); }
+  .trail-diff { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 10px; margin-top: 8px; }
+  .diff-1 { background: #E1F5EE; color: #085041; }
+  .diff-2 { background: #FAEEDA; color: #633806; }
+  .diff-3 { background: #FAECE7; color: #712B13; }
+  .diff-4 { background: #FCEBEB; color: #501313; }
+
+  /* WEEK SUMMARY */
+  .week-summary { padding: 0 12px 12px; }
+  .week-sum-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .week-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .week-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; text-align: center; }
+  .week-card-val { font-size: 18px; font-weight: 700; }
+  .week-card-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* TABS */
+  .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .tab { flex: 1; text-align: center; padding: 10px 4px; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab.active { color: var(--gym); border-bottom-color: var(--gym); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .close-btn { position: absolute; top: 14px; right: 16px; background: var(--bg); border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 18px; cursor: pointer; color: var(--muted); display: flex; align-items: center; justify-content: center; }
+
+  /* COMPLETION BUTTONS */
+  .complete-section { margin-bottom: 14px; }
+  .complete-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .complete-btns { display: flex; flex-direction: column; gap: 8px; }
+  .complete-btn { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: var(--radius-sm); border: 2px solid var(--border); background: var(--card); cursor: pointer; transition: all 0.15s; }
+  .complete-btn:active { transform: scale(0.98); }
+  .complete-btn.done-surf { border-color: var(--surf); background: var(--surf-light); }
+  .complete-btn.done-gym { border-color: var(--gym); background: var(--gym-light); }
+  .complete-btn.done-trail { border-color: var(--trail); background: var(--trail-light); }
+  .complete-btn.done-mob { border-color: var(--mob); background: var(--mob-light); }
+  .complete-btn.done-rest { border-color: var(--rest); background: var(--rest-light); }
+  .complete-btn-label { font-size: 14px; font-weight: 500; color: var(--text); }
+  .complete-btn-check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .complete-btn.done-surf .complete-btn-check { background: var(--surf); border-color: var(--surf); color: white; }
+  .complete-btn.done-gym .complete-btn-check { background: var(--gym); border-color: var(--gym); color: white; }
+  .complete-btn.done-trail .complete-btn-check { background: var(--trail); border-color: var(--trail); color: white; }
+  .complete-btn.done-mob .complete-btn-check { background: var(--mob); border-color: var(--mob); color: white; }
+  .complete-btn.done-rest .complete-btn-check { background: var(--rest); border-color: var(--rest); color: white; }
+
+  /* CALENDAR COMPLETION INDICATORS */
+  .cal-checks { display: flex; gap: 2px; margin-top: 2px; flex-wrap: wrap; }
+  .cal-check { width: 5px; height: 5px; border-radius: 50%; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="app-title">Entrenamiento 🏄</div>
+    <div class="month-nav">
+      <button onclick="changeMonth(-1)">‹</button>
+      <div class="month-label" id="monthLabel"></div>
+      <button onclick="changeMonth(1)">›</button>
+    </div>
+  </div>
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:var(--surf)"></div>Surf</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--gym)"></div>Gym</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--trail)"></div>Trail</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--mob)"></div>Movilidad</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--rest)"></div>Descanso</div>
+  </div>
+</div>
+
+<div class="week-days">
+  <div class="week-day-label">Lun</div>
+  <div class="week-day-label">Mar</div>
+  <div class="week-day-label">Mié</div>
+  <div class="week-day-label">Jue</div>
+  <div class="week-day-label">Vie</div>
+  <div class="week-day-label">Sáb</div>
+  <div class="week-day-label">Dom</div>
+</div>
+
+<div class="calendar" id="calendar"></div>
+
+<div class="week-summary" id="weekSummary"></div>
+
+<div class="overlay" id="overlay" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <button class="close-btn" onclick="closeSheet()">×</button>
+  <div class="sheet-header">
+    <div class="sheet-date" id="sheetDate"></div>
+    <div class="sheet-title" id="sheetTitle"></div>
+  </div>
+  <div class="sheet-body" id="sheetBody"></div>
+</div>
+
+<script>
+// ===== PERIODIZATION ENGINE =====
+
+// Each 4-week block has different sets/reps prescription for main lifts
+// Block 1 (weeks 1-4): Adaptation — moderate volume, learn movement
+// Block 2 (weeks 5-8): Hypertrophy — higher volume
+// Block 3 (weeks 9-12): Strength — heavier, lower reps
+// Block 4+ (weeks 13+): repeats from block 2 with heavier weights
+
+function getBlock(weekNum) {
+  const b = Math.floor(weekNum / 4) % 3;
+  return b; // 0=adaptation, 1=hypertrophy, 2=strength
+}
+
+function getBlockLabel(weekNum) {
+  const labels = ['Adaptación', 'Hipertrofia', 'Fuerza'];
+  return labels[getBlock(weekNum)];
+}
+
+// Returns sets x reps string for a given exercise key and week
+function getPrescription(exKey, weekNum) {
+  const block = getBlock(weekNum);
+  const prescriptions = {
+    // Olympic lifts — never change reps, only intensity
+    'snatch':      ['5 × 3 (técnico)', '5 × 3 (80%)', '6 × 2 (85–90%)'],
+    'cleanjerk':   ['4 × 3 (técnico)', '4 × 3 (80%)', '5 × 2 (85–90%)'],
+    'pushjerk':    ['4 × 3 (técnico)', '4 × 3 (80%)', '5 × 2 (85%)'],
+    // Main strength
+    'frontsquat':  ['4 × 5', '5 × 4', '5 × 3 (pesado)'],
+    'deadlift':    ['3 × 8', '4 × 6', '4 × 4'],
+    'pullups':     ['4 × 6–8', '5 × 5', '5 × 3–4 (+ peso)'],
+    'military':    ['4 × 8', '4 × 6', '5 × 4'],
+    'bench':       ['4 × 8–10', '4 × 8', '4 × 5–6'],
+    'dips':        ['3 × 10–12', '4 × 8', '4 × 6 (+ peso)'],
+    // Accessories — rotate every 8 weeks
+    'acc_legs_a':  ['3 × 10 c/pierna', '4 × 10 c/pierna', '4 × 8 c/pierna'],
+    'acc_legs_b':  ['3 × 12', '4 × 10', '4 × 8'],
+    'acc_pull_a':  ['3 × 12', '4 × 10', '4 × 8'],
+    'acc_push_a':  ['3 × 12', '3 × 12', '3 × 10'],
+    'calves':      ['4 × 15–20', '4 × 15–20', '4 × 12–15'],
+    'facepull':    ['3 × 15', '3 × 15', '3 × 12'],
+    'core':        ['3 × 12', '3 × 12', '3 × 10'],
+  };
+  return (prescriptions[exKey] || ['—','—','—'])[block];
+}
+
+// Accessories rotate every 8 weeks
+function getAccessorySet(weekNum) {
+  return Math.floor(weekNum / 8) % 2; // 0 or 1
+}
+
+// Accessory exercise options (rotates between set A and set B)
+const ACCESSORIES = {
+  legs: [
+    ['Zancadas caminando', 'Step-ups con mancuernas'],
+    ['acc_legs_a', 'acc_legs_a']
+  ],
+  pull: [
+    ['Remo con barra', 'Remo en polea sentado'],
+    ['acc_pull_a', 'acc_pull_a']
+  ],
+  push_acc: [
+    ['Elevaciones laterales', 'Pájaros con mancuernas (rear delt)'],
+    ['acc_push_a', 'acc_push_a']
+  ],
+  legs_vol: [
+    ['Prensa de piernas', 'Hack squat'],
+    ['acc_legs_b', 'acc_legs_b']
+  ],
+};
+
+function getAccessory(type, weekNum) {
+  const set = getAccessorySet(weekNum);
+  return { name: ACCESSORIES[type][0][set], key: ACCESSORIES[type][1][set] };
+}
+
+// Suggest weight based on last 3 weeks of logged weights
+function suggestWeight(exKey) {
+  const today = new Date();
+  const entries = [];
+  for (let w = 1; w <= 4; w++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - w * 7);
+    // Check all days of that week
+    for (let offset = -3; offset <= 3; offset++) {
+      const check = new Date(d);
+      check.setDate(check.getDate() + offset);
+      const key = dateKey(check.getFullYear(), check.getMonth(), check.getDate());
+      const weights = (savedData[key] || {}).weights || {};
+      if (weights[exKey]) entries.push(parseFloat(weights[exKey]));
+    }
+  }
+  if (entries.length === 0) return null;
+  const last = entries[entries.length - 1];
+  // Check if stagnated (same weight 3+ times)
+  if (entries.length >= 3) {
+    const last3 = entries.slice(-3);
+    const stagnated = last3.every(v => v === last3[0]);
+    if (stagnated) return { kg: last, stagnated: true };
+  }
+  // Suggest +2.5kg progression
+  return { kg: last + 2.5, stagnated: false };
+}
+
+// Detect stagnation for alert in sheet
+function checkStagnation(weekNum) {
+  const alerts = [];
+  const mainLifts = [
+    { key: 'olympic', label: 'Olímpico' },
+    { key: 'squat', label: 'Front squat' },
+    { key: 'deadlift', label: 'Peso muerto' },
+    { key: 'pullups', label: 'Dominadas' },
+    { key: 'military', label: 'Press militar' },
+  ];
+  for (const lift of mainLifts) {
+    const s = suggestWeight(lift.key);
+    if (s && s.stagnated) alerts.push(lift.label);
+  }
+  return alerts;
+}
+
+// ===== DATA =====
+const WEEK_PLAN = {
+  1: { // Lunes
+    type: 'gym',
+    label: 'Push + Core',
+    surf: true,
+    gym: {
+      name: 'Lunes — Empuje + Core',
+      blocks: [
+        { name: 'Entrada en calor', exercises: [
+          { name: 'Trote suave o bici', sets: '3 min', tag: '' },
+          { name: 'Rotaciones de hombro con banda', sets: '10 reps c/lado', tag: '' },
+          { name: 'Flexiones suaves', sets: '2 × 10', tag: '' },
+          { name: 'Press con barra vacía', sets: '2 × 8', tag: '' },
+        ]},
+        { name: 'Bloque Olímpico', exercises: [
+          { name: 'Push jerk / Split jerk', sets: '4 × 3', tag: 'surf' },
+        ]},
+        { name: 'Bloque Pliométrico', exercises: [
+          { name: 'Plyo push-ups', sets: '4 × 6', tag: 'surf' },
+          { name: 'Med ball chest pass a pared', sets: '3 × 10', tag: 'surf' },
+        ]},
+        { name: 'Bloque de Fuerza', exercises: [
+          { name: 'Press de banca con mancuernas', sets: '4 × 8–10', tag: 'surf' },
+          { name: 'Fondos en paralelas con peso', sets: '3 × 8–12', tag: 'surf' },
+          { name: 'Press militar con mancuernas', sets: '3 × 10', tag: 'surf' },
+          { name: 'Elevaciones laterales', sets: '3 × 12', tag: '' },
+        ]},
+        { name: 'Core', exercises: [
+          { name: 'Pallof press con cable', sets: '3 × 12 c/lado', tag: 'surf' },
+          { name: 'Ab wheel', sets: '3 × 8–10', tag: '' },
+          { name: 'Plancha con deslizamiento', sets: '3 × 30–40 seg', tag: '' },
+        ]},
+        { name: 'Movilidad final', exercises: [
+          { name: 'Estiramiento pecho en pared', sets: '30 seg c/lado', tag: '' },
+          { name: 'Apertura torácica foam roller', sets: '1 min', tag: '' },
+          { name: 'Estiramiento tríceps', sets: '30 seg c/lado', tag: '' },
+        ]},
+      ]
+    }
+  },
+  2: { // Martes
+    type: 'trail',
+    label: 'Trail corto',
+    surf: true,
+  },
+  3: { // Miércoles
+    type: 'gym',
+    label: 'Piernas + Olímpico',
+    surf: true,
+    gym: {
+      name: 'Miércoles — Piernas + Olímpico',
+      blocks: [
+        { name: 'Entrada en calor', exercises: [
+          { name: 'Trote suave', sets: '3 min', tag: '' },
+          { name: 'Rotaciones cadera y hombro con palo', sets: '10 reps', tag: '' },
+          { name: 'Overhead squat con palo', sets: '2 × 10', tag: '' },
+          { name: 'Snatch con barra vacía', sets: '3 × 5', tag: '' },
+        ]},
+        { name: 'Bloque Olímpico', exercises: [
+          { name: 'Snatch', sets: '5 × 3', tag: 'surf' },
+          { name: 'Clean & jerk / Power clean', sets: '4 × 3', tag: 'surf' },
+        ]},
+        { name: 'Bloque Pliométrico', exercises: [
+          { name: 'Box jumps', sets: '4 × 5 (máx potencia)', tag: 'trail' },
+          { name: 'Single leg hops', sets: '3 × 8 c/lado', tag: 'trail' },
+          { name: 'Broad jumps', sets: '3 × 5', tag: 'trail' },
+        ]},
+        { name: 'Bloque de Fuerza', exercises: [
+          { name: 'Front squat', sets: '4 × 5', tag: 'trail' },
+          { name: 'Peso muerto rumano', sets: '3 × 8', tag: 'trail' },
+          { name: 'Zancadas caminando', sets: '3 × 10 c/pierna', tag: 'trail' },
+          { name: 'Elevaciones de gemelos', sets: '4 × 15–20', tag: 'trail' },
+        ]},
+        { name: 'Core', exercises: [
+          { name: 'Wood chop con cable', sets: '3 × 12 c/lado', tag: 'surf' },
+          { name: 'Dead bug', sets: '3 × 10 c/lado', tag: '' },
+          { name: 'Plancha frontal', sets: '2 × 40 seg', tag: '' },
+        ]},
+        { name: 'Movilidad final', exercises: [
+          { name: 'Paloma en el suelo', sets: '45 seg c/lado', tag: '' },
+          { name: 'Estiramiento cuádriceps', sets: '30 seg c/pierna', tag: '' },
+          { name: 'Apertura torácica en suelo', sets: '1 min', tag: '' },
+        ]},
+      ]
+    }
+  },
+  4: { // Jueves
+    type: 'rest',
+    label: 'Descanso',
+    surf: true,
+  },
+  5: { // Viernes
+    type: 'gym',
+    label: 'Pull + Hombros',
+    surf: true,
+    gym: {
+      name: 'Viernes — Pull + Hombros',
+      blocks: [
+        { name: 'Entrada en calor', exercises: [
+          { name: 'Remo en máquina', sets: '3 min', tag: '' },
+          { name: 'Rotaciones hombro con banda', sets: '10 reps c/lado', tag: '' },
+          { name: 'Dominadas agarre neutro', sets: '2 × 5 suaves', tag: '' },
+          { name: 'Facepull liviano', sets: '2 × 10', tag: '' },
+        ]},
+        { name: 'Bloque Olímpico', exercises: [
+          { name: 'Clean & jerk', sets: '4 × 3', tag: 'surf' },
+        ]},
+        { name: 'Bloque Pliométrico', exercises: [
+          { name: 'Plyo push-ups', sets: '4 × 6', tag: 'surf' },
+          { name: 'Medicine ball slam', sets: '3 × 8', tag: 'surf' },
+          { name: 'Lanzamiento med. ball a pared', sets: '3 × 10', tag: 'surf' },
+        ]},
+        { name: 'Bloque de Fuerza', exercises: [
+          { name: 'Dominadas con peso', sets: '5 × 5–8', tag: 'surf' },
+          { name: 'Remo con barra', sets: '4 × 8–10', tag: 'surf' },
+          { name: 'Press militar con barra', sets: '4 × 6–8', tag: 'surf' },
+          { name: 'Facepull con cable', sets: '3 × 15', tag: 'surf' },
+          { name: 'Curl de bíceps', sets: '3 × 12', tag: 'surf' },
+        ]},
+        { name: 'Core', exercises: [
+          { name: 'Wood chop con cable', sets: '3 × 12 c/lado', tag: 'surf' },
+          { name: 'Dead bug', sets: '3 × 10 c/lado', tag: '' },
+          { name: 'Ab wheel', sets: '3 × 8–10', tag: '' },
+        ]},
+        { name: 'Movilidad final', exercises: [
+          { name: 'Posición fetal en suelo', sets: '1 min', tag: '' },
+          { name: 'Apertura torácica foam roller', sets: '1 min', tag: '' },
+          { name: 'Estiramiento bíceps en pared', sets: '30 seg c/lado', tag: '' },
+        ]},
+      ]
+    }
+  },
+  6: { // Sábado
+    type: 'trail',
+    label: 'Trail largo',
+    surf: true,
+  },
+  0: { // Domingo
+    type: 'mob',
+    label: 'Movilidad',
+    surf: false,
+  }
+};
+
+// Trail progression by week number (1-indexed from start of program)
+const TRAIL_PROGRESSION = {
+  martes: [
+    { name: 'Uvita - San Josecito', km: 3.69, desnivel: 78, diff: 1, diffLabel: 'Muy fácil', note: 'Semana 1–2: reconectar con el impacto' },
+    { name: 'Uvita - San Josecito', km: 3.69, desnivel: 78, diff: 1, diffLabel: 'Muy fácil', note: 'Semana 1–2: reconectar con el impacto' },
+    { name: 'Costa Ballena Run', km: 9.60, desnivel: 98, diff: 1, diffLabel: 'Fácil', note: 'Semana 3–4: ganar volumen en terreno plano' },
+    { name: 'Costa Ballena Run', km: 9.60, desnivel: 98, diff: 1, diffLabel: 'Fácil', note: 'Semana 3–4: ganar volumen en terreno plano' },
+    { name: 'Uvita (hiking)', km: 6.85, desnivel: 244, diff: 2, diffLabel: 'Moderado', note: 'Semana 5–6: primer desnivel real' },
+    { name: 'Uvita (hiking)', km: 6.85, desnivel: 244, diff: 2, diffLabel: 'Moderado', note: 'Semana 5–6: primer desnivel real' },
+    { name: 'Ojochal - Ventanas', km: 11.60, desnivel: 277, diff: 2, diffLabel: 'Moderado', note: 'Semana 7–8: trail running real' },
+    { name: 'Ojochal - Ventanas', km: 11.60, desnivel: 277, diff: 2, diffLabel: 'Moderado', note: 'Semana 7–8: trail running real' },
+  ],
+  sabado: [
+    { name: 'La Planta', km: 2.67, desnivel: 87, diff: 1, diffLabel: 'Muy fácil', note: 'Semana 1–2: largo suave para empezar' },
+    { name: 'Uvita - San Josecito', km: 3.69, desnivel: 78, diff: 1, diffLabel: 'Muy fácil', note: 'Semana 1–2' },
+    { name: 'Ballena Marine NP / Whale Tail', km: 9.02, desnivel: 269, diff: 2, diffLabel: 'Moderado', note: 'Semana 3–4: primer largo con desnivel' },
+    { name: 'Bahía Ballena Uvita Morete', km: 8.53, desnivel: 270, diff: 2, diffLabel: 'Moderado', note: 'Semana 3–4: alternativa similar' },
+    { name: 'Bahía Ballena / Mud / Union Street', km: 12.07, desnivel: 360, diff: 2, diffLabel: 'Moderado', note: 'Semana 5–6: más volumen' },
+    { name: 'Uvita - Los Laureles - Morete', km: 8.27, desnivel: 508, diff: 3, diffLabel: 'Difícil', note: 'Semana 6: mucho desnivel en poca distancia' },
+    { name: 'Kurá Trail - La Pelota - Rancho Pacífico', km: 11.43, desnivel: 779, diff: 3, diffLabel: 'Difícil', note: 'Semana 7–8: nivel alto' },
+    { name: 'Bejuco Trail - La Pelota - Rancho Pacífico', km: 11.03, desnivel: 837, diff: 3, diffLabel: 'Difícil', note: 'Semana 7–8: nivel alto' },
+  ]
+};
+
+// ===== STATE =====
+let currentDate = new Date();
+let viewYear = currentDate.getFullYear();
+let viewMonth = currentDate.getMonth();
+let programStartDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+
+// Load from localStorage
+let savedData = {};
+try { savedData = JSON.parse(localStorage.getItem('esteban_training') || '{}'); } catch(e) {}
+
+// ===== HELPERS =====
+const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DAYS_ES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+function dateKey(y, m, d) { return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+
+function getWeekNumber(date) {
+  const diff = Math.floor((date - programStartDate) / (7 * 24 * 60 * 60 * 1000));
+  return Math.max(0, diff);
+}
+
+function getDayPlan(date) {
+  const dow = date.getDay(); // 0=Sun, 1=Mon...
+  return WEEK_PLAN[dow] || null;
+}
+
+function getTrailForDate(date) {
+  const dow = date.getDay();
+  const weekNum = getWeekNumber(date);
+  const idx = Math.min(weekNum, 7);
+  if (dow === 2) return TRAIL_PROGRESSION.martes[idx];
+  if (dow === 6) return TRAIL_PROGRESSION.sabado[idx];
+  return null;
+}
+
+// ===== RENDER CALENDAR =====
+function renderCalendar() {
+  const label = document.getElementById('monthLabel');
+  label.textContent = `${MONTHS_ES[viewMonth]} ${viewYear}`;
+
+  const cal = document.getElementById('calendar');
+  cal.innerHTML = '';
+
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+  // Adjust so week starts on Monday (0=Mon ... 6=Sun)
+  const startOffset = (firstDay === 0) ? 6 : firstDay - 1;
+
+  for (let i = 0; i < startOffset; i++) {
+    const empty = document.createElement('div');
+    empty.className = 'cal-day empty';
+    cal.appendChild(empty);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(viewYear, viewMonth, d);
+    const key = dateKey(viewYear, viewMonth, d);
+    const plan = getDayPlan(date);
+    const isToday = (d === currentDate.getDate() && viewMonth === currentDate.getMonth() && viewYear === currentDate.getFullYear());
+    const hasSaved = savedData[key] && (savedData[key].note || savedData[key].done);
+
+    const div = document.createElement('div');
+    div.className = 'cal-day' + (isToday ? ' today' : '');
+    div.onclick = () => openSheet(date);
+
+    const dayData = savedData[key] || {};
+    const completions = dayData.completions || {};
+
+    let html = `<div class="cal-day-num">${d}</div>`;
+
+    if (plan) {
+      if (plan.surf) html += `<div class="cal-pill pill-surf">Surf</div>`;
+      if (plan.type === 'gym') html += `<div class="cal-pill pill-gym">${plan.label}</div>`;
+      else if (plan.type === 'trail') html += `<div class="cal-pill pill-trail">${plan.label}</div>`;
+      else if (plan.type === 'rest') html += `<div class="cal-pill pill-rest">Descanso</div>`;
+      else if (plan.type === 'mob') html += `<div class="cal-pill pill-mob">Movilidad</div>`;
+
+      // Completion dots
+      let dots = '';
+      if (plan.surf && completions.surf) dots += `<div class="cal-check" style="background:var(--surf)"></div>`;
+      if (plan.type === 'gym' && completions.gym) dots += `<div class="cal-check" style="background:var(--gym)"></div>`;
+      if (plan.type === 'trail' && completions.trail) dots += `<div class="cal-check" style="background:var(--trail)"></div>`;
+      if (plan.type === 'mob' && completions.mob) dots += `<div class="cal-check" style="background:var(--mob)"></div>`;
+      if (plan.type === 'rest' && completions.rest) dots += `<div class="cal-check" style="background:var(--rest)"></div>`;
+      if (dots) html += `<div class="cal-checks">${dots}</div>`;
+    }
+
+    div.innerHTML = html;
+    cal.appendChild(div);
+  }
+
+  renderWeekSummary();
+}
+
+function renderWeekSummary() {
+  const summary = document.getElementById('weekSummary');
+  // Count sessions this month
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  let gymCount = 0, trailCount = 0, surfCount = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(viewYear, viewMonth, d);
+    const key = dateKey(viewYear, viewMonth, d);
+    const completions = (savedData[key] || {}).completions || {};
+    if (completions.gym) gymCount++;
+    if (completions.trail) trailCount++;
+    if (completions.surf) surfCount++;
+  }
+
+  summary.innerHTML = `
+    <div class="week-sum-title">${MONTHS_ES[viewMonth]} — sesiones completadas</div>
+    <div class="week-cards">
+      <div class="week-card">
+        <div class="week-card-val" style="color:var(--surf)">${surfCount}</div>
+        <div class="week-card-label">Surf</div>
+      </div>
+      <div class="week-card">
+        <div class="week-card-val" style="color:var(--gym)">${gymCount}</div>
+        <div class="week-card-label">Gym</div>
+      </div>
+      <div class="week-card">
+        <div class="week-card-val" style="color:var(--trail)">${trailCount}</div>
+        <div class="week-card-label">Trail</div>
+      </div>
+    </div>
+  `;
+}
+
+// ===== SHEET =====
+function openSheet(date) {
+  const plan = getDayPlan(date);
+  if (!plan) return;
+
+  const key = dateKey(date.getFullYear(), date.getMonth(), date.getDate());
+  const saved = savedData[key] || {};
+
+  document.getElementById('sheetDate').textContent = `${DAYS_ES[date.getDay()]} ${date.getDate()} de ${MONTHS_ES[date.getMonth()]} ${date.getFullYear()}`;
+
+  let title = '';
+  if (plan.type === 'gym') title = `Gym — ${plan.label}`;
+  else if (plan.type === 'trail') title = plan.label === 'Trail corto' ? 'Trail — Martes corto' : 'Trail — Sábado largo';
+  else if (plan.type === 'rest') title = 'Descanso activo';
+  else if (plan.type === 'mob') title = 'Movilidad + Stretching';
+  document.getElementById('sheetTitle').textContent = title;
+
+  let body = '';
+
+  // SURF block always (except Sunday)
+  if (plan.surf) {
+    body += `<div class="session-block surf">
+      <div class="session-block-title">🏄 Surf — Mañana</div>
+      <div style="font-size:13px; color:var(--muted)">Sesión principal del día. Siempre antes del gym o trail.</div>
+    </div>`;
+  }
+
+  // COMPLETION BUTTONS
+  const completions = saved.completions || {};
+  body += `<div class="complete-section">
+    <div class="complete-title">¿Completaste hoy?</div>
+    <div class="complete-btns">`;
+
+  if (plan.surf) {
+    const done = completions.surf;
+    body += `<div class="complete-btn ${done ? 'done-surf' : ''}" onclick="toggleComplete('${key}','surf')">
+      <span class="complete-btn-label">🏄 Surf</span>
+      <span class="complete-btn-check">${done ? '✓' : ''}</span>
+    </div>`;
+  }
+  if (plan.type === 'gym') {
+    const done = completions.gym;
+    body += `<div class="complete-btn ${done ? 'done-gym' : ''}" onclick="toggleComplete('${key}','gym')">
+      <span class="complete-btn-label">💪 Gym — ${plan.label}</span>
+      <span class="complete-btn-check">${done ? '✓' : ''}</span>
+    </div>`;
+  }
+  if (plan.type === 'trail') {
+    const done = completions.trail;
+    body += `<div class="complete-btn ${done ? 'done-trail' : ''}" onclick="toggleComplete('${key}','trail')">
+      <span class="complete-btn-label">🏃 ${plan.label}</span>
+      <span class="complete-btn-check">${done ? '✓' : ''}</span>
+    </div>`;
+  }
+  if (plan.type === 'mob') {
+    const done = completions.mob;
+    body += `<div class="complete-btn ${done ? 'done-mob' : ''}" onclick="toggleComplete('${key}','mob')">
+      <span class="complete-btn-label">🧘 Movilidad</span>
+      <span class="complete-btn-check">${done ? '✓' : ''}</span>
+    </div>`;
+  }
+  if (plan.type === 'rest') {
+    const done = completions.rest;
+    body += `<div class="complete-btn ${done ? 'done-rest' : ''}" onclick="toggleComplete('${key}','rest')">
+      <span class="complete-btn-label">😴 Descanso activo</span>
+      <span class="complete-btn-check">${done ? '✓' : ''}</span>
+    </div>`;
+  }
+
+  body += `</div></div><hr style="border:none;border-top:1px solid var(--border);margin:4px 0 14px">`;
+
+  // GYM
+  if (plan.type === 'gym' && plan.gym) {
+    const weekNum = getWeekNumber(date);
+    const block = getBlock(weekNum);
+    const blockLabel = getBlockLabel(weekNum);
+    const blockColors = ['var(--surf)', 'var(--gym)', 'var(--trail)'];
+    const accSet = getAccessorySet(weekNum);
+    const stagnated = checkStagnation(weekNum);
+
+    body += `<div class="tabs">
+      <div class="tab active" onclick="switchTab(this,'plan')">Programa</div>
+      <div class="tab" onclick="switchTab(this,'log')">Registrar pesos</div>
+    </div>`;
+
+    // Block indicator
+    body += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px 12px;background:var(--bg);border-radius:var(--radius-sm)">
+      <div style="width:8px;height:8px;border-radius:50%;background:${blockColors[block]};flex-shrink:0"></div>
+      <div>
+        <span style="font-size:12px;font-weight:700;color:${blockColors[block]}">Bloque ${block+1} — ${blockLabel}</span>
+        <span style="font-size:11px;color:var(--muted);margin-left:6px">Semana ${weekNum+1} del programa</span>
+      </div>
+    </div>`;
+
+    // Stagnation alert
+    if (stagnated.length > 0) {
+      body += `<div style="background:#FAEEDA;border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;font-size:13px;color:#633806">
+        ⚠️ Estancamiento detectado en: <strong>${stagnated.join(', ')}</strong>. Considerá cambiar el estímulo o deload esta semana.
+      </div>`;
+    }
+
+    // Plan tab
+    body += `<div class="tab-content active" id="tab-plan">`;
+
+    // Build dynamic exercise list based on day
+    const dow = date.getDay();
+    let dynamicBlocks = [];
+
+    if (dow === 1) { // Lunes — Push
+      dynamicBlocks = [
+        { name: 'Entrada en calor', exercises: [
+          { name: 'Trote suave o bici', sets: '3 min', tag: '', key: '' },
+          { name: 'Rotaciones hombro con banda', sets: '10 reps c/lado', tag: '', key: '' },
+          { name: 'Flexiones suaves', sets: '2 × 10', tag: '', key: '' },
+          { name: 'Press con barra vacía', sets: '2 × 8', tag: '', key: '' },
+        ]},
+        { name: 'Bloque Olímpico', exercises: [
+          { name: 'Push jerk / Split jerk', sets: getPrescription('pushjerk', weekNum), tag: 'surf', key: 'olympic' },
+        ]},
+        { name: 'Bloque Pliométrico', exercises: [
+          { name: 'Plyo push-ups', sets: '4 × 6', tag: 'surf', key: '' },
+          { name: 'Med ball chest pass a pared', sets: '3 × 10', tag: 'surf', key: '' },
+        ]},
+        { name: 'Bloque de Fuerza', exercises: [
+          { name: 'Press de banca con mancuernas', sets: getPrescription('bench', weekNum), tag: 'surf', key: 'squat' },
+          { name: 'Fondos en paralelas con peso', sets: getPrescription('dips', weekNum), tag: 'surf', key: '' },
+          { name: 'Press militar con mancuernas', sets: getPrescription('military', weekNum), tag: 'surf', key: 'military' },
+          { name: getAccessory('push_acc', weekNum).name, sets: getPrescription(getAccessory('push_acc', weekNum).key, weekNum), tag: '', key: '' },
+        ]},
+        { name: 'Core', exercises: [
+          { name: 'Pallof press con cable', sets: getPrescription('core', weekNum) + ' c/lado', tag: 'surf', key: '' },
+          { name: 'Ab wheel', sets: '3 × 8–10', tag: '', key: '' },
+          { name: 'Plancha con deslizamiento', sets: '3 × 30–40 seg', tag: '', key: '' },
+        ]},
+        { name: 'Movilidad final', exercises: [
+          { name: 'Estiramiento pecho en pared', sets: '30 seg c/lado', tag: '', key: '' },
+          { name: 'Apertura torácica foam roller', sets: '1 min', tag: '', key: '' },
+          { name: 'Estiramiento tríceps', sets: '30 seg c/lado', tag: '', key: '' },
+        ]},
+      ];
+    } else if (dow === 3) { // Miércoles — Piernas
+      const legsAcc = getAccessory('legs', weekNum);
+      const legsVol = getAccessory('legs_vol', weekNum);
+      dynamicBlocks = [
+        { name: 'Entrada en calor', exercises: [
+          { name: 'Trote suave', sets: '3 min', tag: '', key: '' },
+          { name: 'Rotaciones cadera y hombro con palo', sets: '10 reps', tag: '', key: '' },
+          { name: 'Overhead squat con palo', sets: '2 × 10', tag: '', key: '' },
+          { name: 'Snatch con barra vacía', sets: '3 × 5', tag: '', key: '' },
+        ]},
+        { name: 'Bloque Olímpico', exercises: [
+          { name: 'Snatch', sets: getPrescription('snatch', weekNum), tag: 'surf', key: 'olympic' },
+          { name: 'Clean & jerk / Power clean', sets: getPrescription('cleanjerk', weekNum), tag: 'surf', key: 'olympic' },
+        ]},
+        { name: 'Bloque Pliométrico', exercises: [
+          { name: 'Box jumps', sets: '4 × 5 (máx potencia)', tag: 'trail', key: '' },
+          { name: 'Single leg hops', sets: '3 × 8 c/lado', tag: 'trail', key: '' },
+          { name: 'Broad jumps', sets: '3 × 5', tag: 'trail', key: '' },
+        ]},
+        { name: 'Bloque de Fuerza', exercises: [
+          { name: 'Front squat', sets: getPrescription('frontsquat', weekNum), tag: 'trail', key: 'squat' },
+          { name: 'Peso muerto rumano', sets: getPrescription('deadlift', weekNum), tag: 'trail', key: 'deadlift' },
+          { name: legsAcc.name, sets: getPrescription(legsAcc.key, weekNum), tag: 'trail', key: '' },
+          { name: legsVol.name, sets: getPrescription(legsVol.key, weekNum), tag: 'trail', key: '' },
+          { name: 'Elevaciones de gemelos', sets: getPrescription('calves', weekNum), tag: 'trail', key: '' },
+        ]},
+        { name: 'Core', exercises: [
+          { name: 'Wood chop con cable', sets: getPrescription('core', weekNum) + ' c/lado', tag: 'surf', key: '' },
+          { name: 'Dead bug', sets: '3 × 10 c/lado', tag: '', key: '' },
+          { name: 'Plancha frontal', sets: '2 × 40 seg', tag: '', key: '' },
+        ]},
+        { name: 'Movilidad final', exercises: [
+          { name: 'Paloma en el suelo', sets: '45 seg c/lado', tag: '', key: '' },
+          { name: 'Estiramiento cuádriceps', sets: '30 seg c/pierna', tag: '', key: '' },
+          { name: 'Apertura torácica en suelo', sets: '1 min', tag: '', key: '' },
+        ]},
+      ];
+    } else if (dow === 5) { // Viernes — Pull
+      const pullAcc = getAccessory('pull', weekNum);
+      dynamicBlocks = [
+        { name: 'Entrada en calor', exercises: [
+          { name: 'Remo en máquina', sets: '3 min', tag: '', key: '' },
+          { name: 'Rotaciones hombro con banda', sets: '10 reps c/lado', tag: '', key: '' },
+          { name: 'Dominadas agarre neutro', sets: '2 × 5 suaves', tag: '', key: '' },
+          { name: 'Facepull liviano', sets: '2 × 10', tag: '', key: '' },
+        ]},
+        { name: 'Bloque Olímpico', exercises: [
+          { name: 'Clean & jerk', sets: getPrescription('cleanjerk', weekNum), tag: 'surf', key: 'olympic' },
+        ]},
+        { name: 'Bloque Pliométrico', exercises: [
+          { name: 'Plyo push-ups', sets: '4 × 6', tag: 'surf', key: '' },
+          { name: 'Medicine ball slam', sets: '3 × 8', tag: 'surf', key: '' },
+          { name: 'Lanzamiento med. ball a pared', sets: '3 × 10', tag: 'surf', key: '' },
+        ]},
+        { name: 'Bloque de Fuerza', exercises: [
+          { name: 'Dominadas con peso', sets: getPrescription('pullups', weekNum), tag: 'surf', key: 'pullups' },
+          { name: pullAcc.name, sets: getPrescription(pullAcc.key, weekNum), tag: 'surf', key: 'deadlift' },
+          { name: 'Press militar con barra', sets: getPrescription('military', weekNum), tag: 'surf', key: 'military' },
+          { name: 'Facepull con cable', sets: getPrescription('facepull', weekNum), tag: 'surf', key: '' },
+          { name: 'Curl de bíceps', sets: '3 × 12', tag: 'surf', key: '' },
+        ]},
+        { name: 'Core', exercises: [
+          { name: 'Wood chop con cable', sets: getPrescription('core', weekNum) + ' c/lado', tag: 'surf', key: '' },
+          { name: 'Dead bug', sets: '3 × 10 c/lado', tag: '', key: '' },
+          { name: 'Ab wheel', sets: '3 × 8–10', tag: '', key: '' },
+        ]},
+        { name: 'Movilidad final', exercises: [
+          { name: 'Posición fetal en suelo', sets: '1 min', tag: '', key: '' },
+          { name: 'Apertura torácica foam roller', sets: '1 min', tag: '', key: '' },
+          { name: 'Estiramiento bíceps en pared', sets: '30 seg c/lado', tag: '', key: '' },
+        ]},
+      ];
+    }
+
+    // Rest time per block type
+    const REST_TIMES = {
+      'Entrada en calor':  null,
+      'Bloque Olímpico':   { label: '⏱ Descanso entre series: 3 min', color: 'var(--surf-dark)', bg: 'var(--surf-light)' },
+      'Bloque Pliométrico':{ label: '⏱ Descanso entre series: 2 min', color: '#3C3489', bg: '#EEEDFE' },
+      'Bloque de Fuerza':  { label: '⏱ Descanso entre series: 2–3 min (squat/muerto) · 90 seg (accesorios)', color: 'var(--trail-dark)', bg: 'var(--trail-light)' },
+      'Core':              { label: '⏱ Descanso entre series: 60 seg', color: 'var(--muted)', bg: 'var(--bg)' },
+      'Movilidad final':   null,
+    };
+
+    for (const blk of dynamicBlocks) {
+      const rest = REST_TIMES[blk.name];
+      body += `<div class="session-block gym"><div class="session-block-title">${blk.name}</div>`;
+      if (rest) {
+        body += `<div style="font-size:12px;padding:5px 8px;border-radius:6px;background:${rest.bg};color:${rest.color};margin-bottom:8px">${rest.label}</div>`;
+      }
+      for (const ex of blk.exercises) {
+        const tagLabel = ex.tag === 'surf' ? '🏄 ' : ex.tag === 'trail' ? '🏃 ' : '';
+        let weightHint = '';
+        if (ex.key) {
+          const sug = suggestWeight(ex.key);
+          if (sug) {
+            const color = sug.stagnated ? '#BA7517' : 'var(--surf-dark)';
+            const bg = sug.stagnated ? '#FAEEDA' : 'var(--surf-light)';
+            const icon = sug.stagnated ? '⚠️' : '↑';
+            weightHint = `<div style="font-size:11px;padding:2px 7px;border-radius:8px;background:${bg};color:${color};margin-top:3px">${icon} ${sug.kg} kg sugerido</div>`;
+          }
+        }
+        body += `<div class="ex-row">
+          <div class="ex-info">
+            <div class="ex-name">${tagLabel}${ex.name}</div>
+            ${weightHint}
+          </div>
+          <div class="ex-target">${ex.sets}</div>
+        </div>`;
+      }
+      body += `</div>`;
+    }
+
+    if (accSet === 1) {
+      body += `<div style="font-size:12px;color:var(--muted);padding:8px 0;border-top:1px solid var(--border);margin-top:4px">🔄 Rotación de accesorios activa (semana ${weekNum+1})</div>`;
+    }
+
+    body += `</div>`;
+
+    // Log tab — build exercise list from the session's weighted blocks only
+    const savedWeights = saved.weights || {};
+    const savedNote = saved.note || '';
+
+    // Collect all exercises with a logKey from olympic, plyo, and strength blocks
+    const weightedBlockNames = ['Bloque Olímpico', 'Bloque Pliométrico', 'Bloque de Fuerza'];
+    const logExercises = [];
+    const seenKeys = new Set();
+
+    for (const blk of dynamicBlocks) {
+      if (!weightedBlockNames.includes(blk.name)) continue;
+      for (const ex of blk.exercises) {
+        // All exercises in these blocks get logged — use name as unique key if no logKey
+        const logKey = ex.key || ex.name.toLowerCase().replace(/[^a-z0-9]/g,'_').substring(0,20);
+        if (!seenKeys.has(logKey)) {
+          seenKeys.add(logKey);
+          logExercises.push({ key: logKey, label: ex.name, block: blk.name });
+        }
+      }
+    }
+
+    body += `<div class="tab-content" id="tab-log">`;
+
+    let currentBlock = '';
+    for (const ex of logExercises) {
+      if (ex.block !== currentBlock) {
+        currentBlock = ex.block;
+        body += `<div class="log-label" style="margin-top:${currentBlock === logExercises[0].block ? '0' : '12px'}">${currentBlock}</div>`;
+      }
+      const sug = suggestWeight(ex.key);
+      const phText = sug ? (sug.stagnated ? '⚠ estancado' : `sug: ${sug.kg} kg`) : 'kg';
+      body += `<div class="log-row">
+        <div style="font-size:13px;flex:1;color:var(--muted)">${ex.label}</div>
+        <input class="log-input" style="max-width:100px" type="number" placeholder="${phText}" id="w_${ex.key}" value="${savedWeights[ex.key] || ''}">
+      </div>`;
+    }
+
+    body += `<div class="log-label" style="margin-top:12px">Notas del día</div>
+      <textarea class="log-textarea" id="noteInput" placeholder="¿Cómo estuvo la sesión? Energía, técnica, sensaciones...">${savedNote}</textarea>
+      <button class="save-btn" onclick="saveDay('${key}', ${JSON.stringify(logExercises.map(e=>e.key))})">Guardar sesión ✓</button>
+    </div>`;
+  }
+
+  // TRAIL
+  if (plan.type === 'trail') {
+    const trail = getTrailForDate(date);
+    const weekNum = getWeekNumber(date) + 1;
+    if (trail) {
+      const diffClass = `diff-${trail.diff}`;
+      body += `<div class="session-block trail">
+        <div class="session-block-title">🏃 Trail — Semana ${weekNum}</div>
+        <div class="trail-card">
+          <div class="trail-name">${trail.name}</div>
+          <div class="trail-stats">
+            <div class="trail-stat"><div class="trail-stat-val">${trail.km} km</div><div class="trail-stat-label">Distancia</div></div>
+            <div class="trail-stat"><div class="trail-stat-val">${trail.desnivel} m</div><div class="trail-stat-label">Desnivel</div></div>
+          </div>
+          <div class="trail-diff ${diffClass}">${trail.diffLabel}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:8px">${trail.note}</div>
+        </div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px">
+          ${date.getDay() === 2 ? 'Ritmo zona 2 — conversacional. Cuidado con las bajadas.' : 'Ritmo libre. Disfrutá el terreno.'}
+        </div>
+      </div>`;
+    }
+
+    body += `<div class="log-label" style="margin-top:12px">Registrar salida</div>
+      <div class="log-row">
+        <div style="font-size:13px;flex:1;color:var(--muted)">Tiempo total</div>
+        <input class="log-input" style="max-width:110px" type="text" placeholder="ej: 42 min" id="w_time" value="${(savedData[key]||{}).time||''}">
+      </div>
+      <div class="log-label" style="margin-top:8px">Notas</div>
+      <textarea class="log-textarea" id="noteInput" placeholder="¿Cómo estuvo? Terreno, sensaciones, clima...">${(savedData[key]||{}).note||''}</textarea>
+      <button class="save-btn" onclick="saveTrail('${key}')">Guardar salida ✓</button>`;
+  }
+
+  // REST
+  if (plan.type === 'rest') {
+    body += `<div class="session-block rest">
+      <div class="session-block-title">Tarde libre — recuperación</div>
+      <div class="ex-row"><div class="ex-info"><div class="ex-name">Sin entrenamiento</div><div class="ex-sub">El jueves es el buffer después del miércoles exigente. Respetarlo es parte del plan.</div></div></div>
+      <div class="ex-row"><div class="ex-info"><div class="ex-name">Opciones suaves</div><div class="ex-sub">Caminata, stretching liviano, foam roller</div></div></div>
+    </div>
+    <div class="log-label">Notas</div>
+    <textarea class="log-textarea" id="noteInput" placeholder="¿Cómo te sentiste? ¿Algo que quieras recordar?">${(savedData[key]||{}).note||''}</textarea>
+    <button class="save-btn" onclick="saveNote('${key}')">Guardar nota ✓</button>`;
+  }
+
+  // MOBILITY
+  if (plan.type === 'mob') {
+    body += `<div class="session-block mob">
+      <div class="session-block-title">🧘 Movilidad + Stretching</div>
+      <div class="ex-row"><div class="ex-info"><div class="ex-name">Foam roller — piernas completas</div></div><div class="ex-target">10 min</div></div>
+      <div class="ex-row"><div class="ex-info"><div class="ex-name">Paloma en suelo (cadera)</div></div><div class="ex-target">60 seg c/lado</div></div>
+      <div class="ex-row"><div class="ex-info"><div class="ex-name">Estiramiento isquiotibiales</div></div><div class="ex-target">45 seg c/lado</div></div>
+      <div class="ex-row"><div class="ex-info"><div class="ex-name">Apertura torácica</div></div><div class="ex-target">2 min</div></div>
+      <div class="ex-row"><div class="ex-info"><div class="ex-name">Rotaciones de hombro suaves</div></div><div class="ex-target">10 reps c/lado</div></div>
+      <div class="ex-row"><div class="ex-info"><div class="ex-name">Yoga o stretching libre</div></div><div class="ex-target">15–20 min</div></div>
+    </div>
+    <div class="log-label">Notas</div>
+    <textarea class="log-textarea" id="noteInput" placeholder="¿Cómo está el cuerpo? ¿Alguna zona con tensión?">${(savedData[key]||{}).note||''}</textarea>
+    <button class="save-btn" onclick="saveNote('${key}')">Guardar nota ✓</button>`;
+  }
+
+  document.getElementById('sheetBody').innerHTML = body;
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('sheet').classList.add('open');
+}
+
+function closeSheet() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('sheet').classList.remove('open');
+}
+
+function switchTab(el, tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ===== TOGGLE COMPLETE =====
+function toggleComplete(key, type) {
+  if (!savedData[key]) savedData[key] = {};
+  if (!savedData[key].completions) savedData[key].completions = {};
+  savedData[key].completions[type] = !savedData[key].completions[type];
+  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+
+  // Update button in place without closing sheet
+  const btns = document.querySelectorAll('.complete-btn');
+  btns.forEach(btn => {
+    const onclick = btn.getAttribute('onclick') || '';
+    if (onclick.includes(`'${type}'`)) {
+      const done = savedData[key].completions[type];
+      btn.className = `complete-btn${done ? ` done-${type}` : ''}`;
+      btn.querySelector('.complete-btn-check').textContent = done ? '✓' : '';
+    }
+  });
+  renderCalendar();
+}
+
+// ===== SAVE =====
+function saveDay(key, exKeys) {
+  const weights = {};
+  const keys = exKeys || ['olympic','squat','deadlift','pullups','military'];
+  keys.forEach(k => {
+    const el = document.getElementById('w_' + k);
+    if (el && el.value) weights[k] = parseFloat(el.value);
+  });
+  const note = document.getElementById('noteInput')?.value || '';
+  savedData[key] = { ...savedData[key], weights, note, done: true };
+  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  showSavedToast();
+  renderCalendar();
+}
+
+function saveTrail(key) {
+  const time = document.getElementById('w_time')?.value || '';
+  const note = document.getElementById('noteInput')?.value || '';
+  savedData[key] = { ...savedData[key], time, note, done: true };
+  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  showSavedToast();
+  renderCalendar();
+}
+
+function saveNote(key) {
+  const note = document.getElementById('noteInput')?.value || '';
+  savedData[key] = { ...savedData[key], note, done: true };
+  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  showSavedToast();
+  renderCalendar();
+}
+
+function showSavedToast() {
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:white;padding:10px 20px;border-radius:20px;font-size:14px;z-index:999;';
+  toast.textContent = '✓ Guardado';
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2000);
+}
+
+function changeMonth(dir) {
+  viewMonth += dir;
+  if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+  if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+  renderCalendar();
+}
+
+// ===== INIT =====
+renderCalendar();
+</script>
+</body>
+</html>
