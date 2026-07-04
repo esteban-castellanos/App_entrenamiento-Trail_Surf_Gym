@@ -1518,6 +1518,9 @@ let gpsState = {
   uiTimer: null,
   running: false,
   paused: false,
+  frozenDurationSec: null,
+  frozenDistanceKm: null,
+  frozenPace: null,
 };
 
 function haversineKm(a, b) {
@@ -1558,19 +1561,33 @@ function getGpsElapsedSec() {
 }
 
 function updateGpsUI() {
-  const dist = calcGpsDistance(gpsState.points);
-  const sec = getGpsElapsedSec();
+  let dist, sec, pace;
+  if (!gpsState.running && gpsState.frozenDurationSec != null) {
+    dist = gpsState.frozenDistanceKm ?? calcGpsDistance(gpsState.points);
+    sec = gpsState.frozenDurationSec;
+    pace = gpsState.frozenPace || formatPace(sec, dist);
+  } else {
+    dist = calcGpsDistance(gpsState.points);
+    sec = getGpsElapsedSec();
+    pace = formatPace(sec, dist);
+  }
   const timeEl = document.getElementById('gpsTime');
   const distEl = document.getElementById('gpsDist');
   const paceEl = document.getElementById('gpsPace');
   const statusEl = document.getElementById('gpsStatus');
   if (timeEl) timeEl.textContent = formatGpsTime(sec);
-  if (distEl) distEl.textContent = dist.toFixed(2);
-  if (paceEl) paceEl.textContent = formatPace(sec, dist);
+  if (distEl) distEl.textContent = Number(dist).toFixed(2);
+  if (paceEl) paceEl.textContent = pace;
   if (statusEl) {
     if (gpsState.running && !gpsState.paused) statusEl.textContent = `📍 GPS activo · ${gpsState.points.length} puntos`;
     else if (gpsState.paused) statusEl.textContent = '⏸ GPS en pausa';
-    else if (gpsState.points.length) statusEl.textContent = 'GPS detenido — datos guardados';
+    else if (gpsState.points.length) {
+      if (gpsState.frozenDurationSec != null) {
+        statusEl.textContent = `Última salida: ${Number(gpsState.frozenDistanceKm || 0).toFixed(2)} km · ${gpsState.frozenPace} min/km`;
+      } else {
+        statusEl.textContent = 'GPS detenido — datos guardados';
+      }
+    }
     else statusEl.textContent = 'Tocá Iniciar para registrar tu trail con GPS';
   }
   const last = gpsState.points[gpsState.points.length - 1];
@@ -1658,8 +1675,17 @@ function startGps(key) {
     persistGps(key);
     return;
   }
+  // Nueva salida: limpiar sesión anterior detenida
+  if (!gpsState.running) {
+    gpsState.frozenDurationSec = null;
+    gpsState.frozenDistanceKm = null;
+    gpsState.frozenPace = null;
+    gpsState.points = [];
+    gpsState.startTs = Date.now();
+    gpsState.pausedMs = 0;
+    gpsState.pauseStart = 0;
+  }
   gpsState.key = key;
-  if (!gpsState.startTs) gpsState.startTs = Date.now();
   gpsState.running = true;
   gpsState.paused = false;
   if (!gpsState.watchId) {
@@ -1729,7 +1755,15 @@ function stopGps(key) {
   setGpsButtons('idle');
   updateGpsUI();
   showSavedToast(`GPS: ${dist.toFixed(2)} km en ${formatGpsTime(sec)}`);
-  gpsState = { key: null, watchId: null, points: [], startTs: 0, pausedMs: 0, pauseStart: 0, uiTimer: null, running: false, paused: false };
+  gpsState = {
+    key: null, watchId: null, points: savedData[key]?.gps?.points || [],
+    startTs: 0, pausedMs: 0, pauseStart: 0, uiTimer: null,
+    running: false, paused: false,
+    frozenDurationSec: Math.round(sec),
+    frozenDistanceKm: Math.round(dist * 100) / 100,
+    frozenPace: formatPace(sec, dist),
+  };
+  updateGpsUI();
 }
 
 function initGpsUI(key) {
@@ -1742,18 +1776,19 @@ function initGpsUI(key) {
     startGps(key);
     return;
   }
-  if (saved && saved.points && saved.points.length) {
-    gpsState.points = saved.points;
-    if (saved.status === 'stopped') {
-      const statusEl = document.getElementById('gpsStatus');
-      if (statusEl) statusEl.textContent = `Última salida: ${saved.distanceKm} km · ${saved.pace} min/km`;
-    }
+  if (saved && saved.status === 'stopped') {
+    gpsState.points = saved.points || [];
+    gpsState.frozenDurationSec = saved.durationSec || 0;
+    gpsState.frozenDistanceKm = saved.distanceKm;
+    gpsState.frozenPace = saved.pace;
     gpsState.startTs = 0;
-    updateGpsUI();
     const timeInput = document.getElementById('w_time');
     if (timeInput && !timeInput.value && saved.durationSec) {
       timeInput.value = `${Math.round(saved.durationSec / 60)} min`;
     }
+  } else if (saved && saved.points && saved.points.length) {
+    gpsState.points = saved.points;
+    gpsState.startTs = 0;
   }
   setGpsButtons('idle');
   updateGpsUI();
