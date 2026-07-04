@@ -269,8 +269,12 @@
       <label class="notif-toggle"><input type="checkbox" id="timerNotif" checked onchange="saveNotifSettings()"> Aviso al terminar descanso</label>
     </div>
     <div class="data-btns">
-      <button class="data-btn" onclick="exportData()">📤 Exportar datos</button>
-      <button class="data-btn" onclick="importData()">📥 Importar datos</button>
+      <button class="data-btn" onclick="exportForAI()">🤖 Exportar para AI</button>
+      <button class="data-btn" onclick="exportData()">📤 Backup completo</button>
+      <button class="data-btn" onclick="importData()">📥 Importar</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4">
+      <strong>Para AI:</strong> descarga .json + .md + .jsonl → subilos a Google Drive en carpeta <em>Entrenamiento/</em>
     </div>
     <button class="data-btn" id="installBtn" style="display:none;width:100%;margin-top:8px" onclick="installApp()">📲 Instalar app</button>
     <div id="iosInstallHint" style="display:none;font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4">
@@ -1857,6 +1861,223 @@ function initSettings() {
   }
 }
 
+// ===== AI EXPORT (Fase 1) =====
+const LIFT_LABELS = {
+  snatch: 'Snatch', cleanjerk: 'Clean & jerk', pushjerk: 'Push jerk', olympic: 'Olímpico',
+  squat: 'Front squat', deadlift: 'Peso muerto', bench: 'Press de banca',
+  pullups: 'Dominadas', military: 'Press militar', dips: 'Fondos',
+  calves: 'Gemelos', facepull: 'Facepull',
+  acc_legs_a: 'Acc. piernas', acc_legs_b: 'Acc. volumen piernas',
+  acc_pull_a: 'Acc. pull', acc_push_a: 'Acc. push',
+};
+
+function parseDateKey(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function labelWeights(weights) {
+  if (!weights) return {};
+  const out = {};
+  for (const [k, v] of Object.entries(weights)) {
+    out[LIFT_LABELS[k] || k] = v;
+  }
+  return out;
+}
+
+function sessionHasData(session) {
+  return Object.keys(session.activities).length > 0;
+}
+
+function buildAISessions() {
+  const keys = Object.keys(savedData).sort();
+  return keys.map(key => {
+    const date = parseDateKey(key);
+    const plan = getDayPlan(date);
+    const dayData = savedData[key];
+    const weekIdx = getWeekNumber(date);
+    const comp = dayData.completions || {};
+    const session = {
+      date: key,
+      day: DAYS_ES[date.getDay()],
+      week: weekIdx + 1,
+      block: getBlockLabel(weekIdx),
+      planned: plan ? { type: plan.type, label: plan.label, surf: !!plan.surf } : null,
+      activities: {},
+    };
+
+    if (comp.surf || (plan?.surf && dayData.surf)) {
+      session.activities.surf = { completed: !!comp.surf };
+    }
+    if (comp.gym || dayData.weights || (dayData.note && plan?.type === 'gym')) {
+      session.activities.gym = {
+        completed: !!comp.gym,
+        label: plan?.label || null,
+        weights_kg: dayData.weights || {},
+        weights_labeled: labelWeights(dayData.weights),
+        set_progress: dayData.setProgress || {},
+        notes: dayData.note || null,
+      };
+    }
+    if (comp.trail || dayData.gps || dayData.time || (dayData.note && plan?.type === 'trail')) {
+      const trail = getTrailForDate(date);
+      session.activities.trail = {
+        completed: !!comp.trail,
+        label: plan?.label || null,
+        route: trail?.name || null,
+        planned_km: trail?.km ?? null,
+        planned_elevation_m: trail?.desnivel ?? null,
+        difficulty: trail?.diffLabel || null,
+        time_logged: dayData.time || null,
+        gps: dayData.gps ? {
+          km: dayData.gps.distanceKm,
+          duration_sec: dayData.gps.durationSec,
+          pace_min_km: dayData.gps.pace,
+        } : null,
+        notes: dayData.note || null,
+      };
+    }
+    if (comp.mob || (dayData.note && plan?.type === 'mob')) {
+      session.activities.mob = { completed: !!comp.mob, notes: dayData.note || null };
+    }
+    if (comp.rest || (dayData.note && plan?.type === 'rest')) {
+      session.activities.rest = { completed: !!comp.rest, notes: dayData.note || null };
+    }
+    return session;
+  }).filter(sessionHasData);
+}
+
+function buildSummaryStats(sessions) {
+  let surf = 0, gym = 0, trail = 0, mob = 0;
+  for (const s of sessions) {
+    if (s.activities.surf?.completed) surf++;
+    if (s.activities.gym?.completed) gym++;
+    if (s.activities.trail?.completed) trail++;
+    if (s.activities.mob?.completed) mob++;
+  }
+  return { sessions_logged: sessions.length, surf_completed: surf, gym_completed: gym, trail_completed: trail, mobility_completed: mob };
+}
+
+function buildAIExportPayload() {
+  const sessions = buildAISessions();
+  return {
+    schema_version: 1,
+    format: 'esteban-training-ai',
+    exported_at: new Date().toISOString(),
+    athlete: { name: 'Esteban', location: 'Uvita, Costa Rica' },
+    program_start: localStorage.getItem('esteban_program_start'),
+    summary: buildSummaryStats(sessions),
+    sessions,
+    raw_training: savedData,
+  };
+}
+
+function formatMdWeights(gym) {
+  const labeled = gym.weights_labeled || labelWeights(gym.weights_kg);
+  const entries = Object.entries(labeled);
+  if (!entries.length) return '';
+  return entries.map(([name, kg]) => `${name}: ${kg} kg`).join(' · ');
+}
+
+function formatMdLine(session) {
+  const lines = [];
+  const { date, day, activities: a } = session;
+  lines.push(`## ${date} ${day}`);
+  if (a.surf) lines.push(`- ${a.surf.completed ? '✅' : '⬜'} Surf mañana`);
+  if (a.gym) {
+    const w = formatMdWeights(a.gym);
+    lines.push(`- ${a.gym.completed ? '✅' : '⬜'} Gym: ${a.gym.label || 'sesión'}${w ? `\n  - Pesos: ${w}` : ''}`);
+    if (a.gym.notes) lines.push(`  - Notas: ${a.gym.notes}`);
+  }
+  if (a.trail) {
+    const t = a.trail;
+    let detail = t.route || t.label || 'Trail';
+    if (t.gps?.km) detail += ` (${t.gps.km} km GPS`;
+    if (t.gps?.pace) detail += `, ${t.gps.pace}/km`;
+    if (t.gps?.km) detail += ')';
+    else if (t.time_logged) detail += ` (${t.time_logged})`;
+    lines.push(`- ${t.completed ? '✅' : '⬜'} Trail: ${detail}`);
+    if (t.notes) lines.push(`  - Notas: ${t.notes}`);
+  }
+  if (a.mob) {
+    lines.push(`- ${a.mob.completed ? '✅' : '⬜'} Movilidad`);
+    if (a.mob.notes) lines.push(`  - Notas: ${a.mob.notes}`);
+  }
+  if (a.rest) {
+    lines.push(`- ${a.rest.completed ? '✅' : '⬜'} Descanso activo`);
+    if (a.rest.notes) lines.push(`  - Notas: ${a.rest.notes}`);
+  }
+  lines.push('');
+  return lines.join('\n');
+}
+
+function buildAIMarkdown(payload) {
+  const { sessions, summary, program_start, exported_at } = payload;
+  const weeks = {};
+  for (const s of sessions) {
+    const w = s.week;
+    if (!weeks[w]) weeks[w] = { block: s.block, sessions: [] };
+    weeks[w].sessions.push(s);
+  }
+  let md = `# Entrenamiento — Esteban\n\n`;
+  md += `> Exportado: ${exported_at}\n`;
+  md += `> Programa iniciado: ${program_start || '—'}\n`;
+  md += `> Sesiones registradas: ${summary.sessions_logged} · Surf: ${summary.surf_completed} · Gym: ${summary.gym_completed} · Trail: ${summary.trail_completed}\n\n`;
+  md += `---\n\n`;
+  md += `## Resumen para AI\n\n`;
+  md += `Esteban entrena surf (mañana), gym 3×/sem, trail 2×/sem en Uvita, Costa Rica. `;
+  md += `Objetivo: cuerpo atlético, más volumen de piernas, progresión +2.5 kg/semana. `;
+  md += `Periodización: Adaptación → Hipertrofia → Fuerza (ciclos de 4 semanas).\n\n`;
+  const weekNums = Object.keys(weeks).map(Number).sort((a, b) => a - b);
+  for (const w of weekNums) {
+    const { block, sessions: wSessions } = weeks[w];
+    const first = wSessions[0]?.date || '';
+    const last = wSessions[wSessions.length - 1]?.date || '';
+    md += `# Semana ${w} — ${block} (${first} → ${last})\n\n`;
+    for (const s of wSessions) md += formatMdLine(s);
+    md += '\n';
+  }
+  return md.trim() + '\n';
+}
+
+function buildAIJsonl(payload) {
+  return payload.sessions.map(s => {
+    const row = {
+      date: s.date,
+      day: s.day,
+      week: s.week,
+      block: s.block,
+      surf: s.activities.surf?.completed || false,
+      gym: s.activities.gym?.completed || false,
+      trail: s.activities.trail?.completed || false,
+      notes: s.activities.gym?.notes || s.activities.trail?.notes || s.activities.mob?.notes || null,
+    };
+    if (s.activities.gym?.weights_kg) row.weights = s.activities.gym.weights_kg;
+    if (s.activities.trail?.gps) row.gps_km = s.activities.trail.gps.km;
+    return JSON.stringify(row);
+  }).join('\n') + (payload.sessions.length ? '\n' : '');
+}
+
+function downloadFile(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function exportForAI() {
+  const stamp = dateKey(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+  const payload = buildAIExportPayload();
+  const md = buildAIMarkdown(payload);
+  const jsonl = buildAIJsonl(payload);
+  downloadFile(`entrenamiento-ai-${stamp}.json`, JSON.stringify(payload, null, 2), 'application/json');
+  setTimeout(() => downloadFile(`entrenamiento-log-${stamp}.md`, md, 'text/markdown'), 400);
+  setTimeout(() => downloadFile(`entrenamiento-log-${stamp}.jsonl`, jsonl, 'text/plain'), 800);
+  showSavedToast('3 archivos listos para AI');
+}
+
 function exportData() {
   const payload = {
     version: 1,
@@ -1885,6 +2106,20 @@ function handleImport(event) {
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
+      // Formato AI (Fase 1) — restaura desde raw_training
+      if (data.raw_training && data.schema_version) {
+        savedData = data.raw_training;
+        localStorage.setItem('esteban_training', JSON.stringify(savedData));
+        if (data.program_start) {
+          localStorage.setItem('esteban_program_start', data.program_start);
+          programStartDate = new Date(data.program_start + 'T12:00:00');
+          initSettings();
+        }
+        renderCalendar();
+        showSavedToast('Importado desde export AI');
+        event.target.value = '';
+        return;
+      }
       if (data.training) {
         savedData = data.training;
         localStorage.setItem('esteban_training', JSON.stringify(savedData));
