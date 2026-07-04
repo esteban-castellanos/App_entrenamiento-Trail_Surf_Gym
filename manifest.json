@@ -1,7 +1,7 @@
 {
   "name": "Entrenamiento — Esteban",
   "short_name": "Entreno",
-  "description": "Plan de entrenamiento Surf, Gym y Trail con periodización y registro de pesos.",
+  "description": "Plan de entrenamiento Surf, Gym y Trail con periodización, GPS, notificaciones y registro de pesos.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

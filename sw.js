@@ -1,4 +1,4 @@
-const CACHE = 'esteban-training-v2';
+const CACHE = 'esteban-training-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -37,5 +37,15 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => caches.match(event.request).then((r) => r || caches.match('./index.html')))
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      if (list.length) return list[0].focus();
+      return clients.openWindow('./index.html');
+    })
   );
 });

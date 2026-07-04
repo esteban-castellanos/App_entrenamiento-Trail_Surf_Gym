@@ -213,6 +213,24 @@
   .timer-action { flex: 1; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: white; border-radius: var(--radius-sm); padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
   .timer-action:active { background: rgba(255,255,255,0.25); }
   .timer-action.primary { background: var(--gym); border-color: var(--gym); }
+
+  /* GPS TRACKER */
+  .gps-panel { background: var(--trail-light); border: 1px solid var(--trail-light); border-radius: var(--radius-sm); padding: 12px; margin: 12px 0; }
+  .gps-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; text-align: center; }
+  .gps-stat-val { font-size: 20px; font-weight: 700; color: var(--trail-dark); font-variant-numeric: tabular-nums; }
+  .gps-stat-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .gps-btns { display: flex; gap: 8px; }
+  .gps-btn { flex: 1; border: none; border-radius: var(--radius-sm); padding: 11px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .gps-btn.start { background: var(--trail); color: white; }
+  .gps-btn.pause { background: var(--card); color: var(--trail-dark); border: 1px solid var(--trail); }
+  .gps-btn.stop { background: var(--trail-dark); color: white; }
+  .gps-status { font-size: 11px; color: var(--trail-dark); margin-top: 8px; text-align: center; }
+  .gps-link { display: block; font-size: 12px; color: var(--gym); margin-top: 8px; text-align: center; text-decoration: none; }
+
+  /* NOTIFICATIONS SETTINGS */
+  .notif-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .notif-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .notif-status { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -238,6 +256,16 @@
     <div class="settings-row">
       <label for="programStart">Inicio del programa:</label>
       <input type="date" id="programStart" onchange="setProgramStart(this.value)">
+    </div>
+    <div class="log-label" style="margin-top:4px">Notificaciones</div>
+    <div class="notif-status" id="notifStatus">Sin permiso</div>
+    <button class="data-btn" style="width:100%;margin-bottom:8px" onclick="requestNotificationPermission()">🔔 Activar notificaciones</button>
+    <div class="notif-row">
+      <label class="notif-toggle"><input type="checkbox" id="dailyReminder" onchange="saveNotifSettings()"> Recordatorio matutino</label>
+      <input type="time" id="dailyReminderTime" value="06:30" onchange="saveNotifSettings()" style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 8px;font-size:13px;background:var(--bg)">
+    </div>
+    <div class="notif-row">
+      <label class="notif-toggle"><input type="checkbox" id="timerNotif" checked onchange="saveNotifSettings()"> Aviso al terminar descanso</label>
     </div>
     <div class="data-btns">
       <button class="data-btn" onclick="exportData()">📤 Exportar datos</button>
@@ -1163,7 +1191,22 @@ function openSheet(date) {
       </div>`;
     }
 
-    body += `<div class="log-label" style="margin-top:12px">Registrar salida</div>
+    body += `<div class="log-label" style="margin-top:12px">GPS en vivo</div>
+      <div class="gps-panel" id="gpsPanel">
+        <div class="gps-stats">
+          <div><div class="gps-stat-val" id="gpsTime">0:00</div><div class="gps-stat-label">Tiempo</div></div>
+          <div><div class="gps-stat-val" id="gpsDist">0.00</div><div class="gps-stat-label">km recorridos</div></div>
+          <div><div class="gps-stat-val" id="gpsPace">--:--</div><div class="gps-stat-label">min/km</div></div>
+        </div>
+        <div class="gps-btns">
+          <button class="gps-btn start" id="gpsStartBtn" onclick="startGps('${key}')">▶ Iniciar</button>
+          <button class="gps-btn pause" id="gpsPauseBtn" onclick="pauseGps()" style="display:none">⏸ Pausar</button>
+          <button class="gps-btn stop" id="gpsStopBtn" onclick="stopGps('${key}')" style="display:none">⏹ Detener</button>
+        </div>
+        <div class="gps-status" id="gpsStatus">Tocá Iniciar para registrar tu trail con GPS</div>
+        <a class="gps-link" id="gpsMapLink" href="#" target="_blank" rel="noopener" style="display:none">Ver última posición en mapa</a>
+      </div>
+      <div class="log-label" style="margin-top:12px">Registrar salida</div>
       <div class="log-row">
         <div style="font-size:13px;flex:1;color:var(--muted)">Tiempo total</div>
         <input class="log-input" style="max-width:110px" type="text" placeholder="ej: 42 min" id="w_time" value="${(savedData[key]||{}).time||''}">
@@ -1204,6 +1247,7 @@ function openSheet(date) {
   document.getElementById('sheetBody').innerHTML = body;
   document.getElementById('overlay').classList.add('open');
   document.getElementById('sheet').classList.add('open');
+  if (plan.type === 'trail') initGpsUI(key);
 }
 
 // ===== REST TIMER =====
@@ -1244,6 +1288,9 @@ function playTimerDone() {
     });
   } catch (e) {}
   if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  if (getNotifSettings().timerNotif) {
+    showNotification('⏱ Descanso terminado', restLabel || 'Siguiente serie');
+  }
 }
 
 function stopRestTimer() {
@@ -1354,6 +1401,364 @@ function saveDay(key, exKeys) {
   renderCalendar();
 }
 
+// ===== NOTIFICATIONS =====
+let dailyReminderTimeout = null;
+
+function getNotifSettings() {
+  try {
+    return JSON.parse(localStorage.getItem('esteban_notifications') || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveNotifSettings() {
+  const settings = {
+    dailyReminder: document.getElementById('dailyReminder')?.checked || false,
+    dailyReminderTime: document.getElementById('dailyReminderTime')?.value || '06:30',
+    timerNotif: document.getElementById('timerNotif')?.checked !== false,
+  };
+  localStorage.setItem('esteban_notifications', JSON.stringify(settings));
+  scheduleDailyReminder();
+  updateNotifStatus();
+}
+
+function updateNotifStatus() {
+  const el = document.getElementById('notifStatus');
+  if (!el) return;
+  if (!('Notification' in window)) {
+    el.textContent = 'No soportado en este navegador';
+    return;
+  }
+  const labels = { granted: '✅ Notificaciones activas', denied: '❌ Bloqueadas — activá en ajustes del teléfono', default: 'Sin permiso — tocá Activar' };
+  el.textContent = labels[Notification.permission] || labels.default;
+}
+
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    alert('Tu navegador no soporta notificaciones.');
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  updateNotifStatus();
+  if (perm === 'granted') {
+    saveNotifSettings();
+    showNotification('🏄 Entreno listo', 'Notificaciones activadas. Te avisamos al terminar el descanso.');
+    scheduleDailyReminder();
+  }
+}
+
+async function showNotification(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const opts = {
+    body,
+    icon: 'icons/icon-192.png',
+    badge: 'icons/icon-192.png',
+    vibrate: [200, 100, 200],
+    tag: 'esteban-training',
+    renotify: true,
+  };
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification(title, opts);
+      return;
+    } catch (e) {}
+  }
+  new Notification(title, opts);
+}
+
+function getTodayReminderText() {
+  const plan = getDayPlan(new Date());
+  if (!plan) return 'Revisá tu plan de entrenamiento de hoy.';
+  const parts = [];
+  if (plan.surf) parts.push('Surf mañana');
+  if (plan.type === 'gym') parts.push(`Gym: ${plan.label}`);
+  if (plan.type === 'trail') parts.push(`Trail: ${plan.label}`);
+  if (plan.type === 'mob') parts.push('Movilidad');
+  if (plan.type === 'rest') parts.push('Descanso activo');
+  return parts.join(' · ') || 'Entrenamiento de hoy';
+}
+
+function scheduleDailyReminder() {
+  if (dailyReminderTimeout) clearTimeout(dailyReminderTimeout);
+  const settings = getNotifSettings();
+  if (!settings.dailyReminder || Notification.permission !== 'granted') return;
+  const [h, m] = (settings.dailyReminderTime || '06:30').split(':').map(Number);
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(h, m, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  dailyReminderTimeout = setTimeout(() => {
+    showNotification('🏄 Buen día — entreno hoy', getTodayReminderText());
+    scheduleDailyReminder();
+  }, next - now);
+}
+
+function initNotifSettings() {
+  const settings = getNotifSettings();
+  const daily = document.getElementById('dailyReminder');
+  const time = document.getElementById('dailyReminderTime');
+  const timer = document.getElementById('timerNotif');
+  if (daily) daily.checked = !!settings.dailyReminder;
+  if (time) time.value = settings.dailyReminderTime || '06:30';
+  if (timer) timer.checked = settings.timerNotif !== false;
+  updateNotifStatus();
+  scheduleDailyReminder();
+}
+
+// ===== GPS TRAIL TRACKER =====
+let gpsState = {
+  key: null,
+  watchId: null,
+  points: [],
+  startTs: 0,
+  pausedMs: 0,
+  pauseStart: 0,
+  uiTimer: null,
+  running: false,
+  paused: false,
+};
+
+function haversineKm(a, b) {
+  const R = 6371;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLon = (b.lng - a.lng) * Math.PI / 180;
+  const lat1 = a.lat * Math.PI / 180;
+  const lat2 = b.lat * Math.PI / 180;
+  const h = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+function calcGpsDistance(points) {
+  let km = 0;
+  for (let i = 1; i < points.length; i++) km += haversineKm(points[i-1], points[i]);
+  return km;
+}
+
+function formatGpsTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function formatPace(sec, km) {
+  if (!km || km < 0.01) return '--:--';
+  const paceSec = sec / km;
+  const pm = Math.floor(paceSec / 60);
+  const ps = Math.floor(paceSec % 60);
+  return `${pm}:${String(ps).padStart(2, '0')}`;
+}
+
+function getGpsElapsedSec() {
+  if (!gpsState.startTs) return 0;
+  let ms = Date.now() - gpsState.startTs - gpsState.pausedMs;
+  if (gpsState.paused && gpsState.pauseStart) ms -= (Date.now() - gpsState.pauseStart);
+  return Math.max(0, ms / 1000);
+}
+
+function updateGpsUI() {
+  const dist = calcGpsDistance(gpsState.points);
+  const sec = getGpsElapsedSec();
+  const timeEl = document.getElementById('gpsTime');
+  const distEl = document.getElementById('gpsDist');
+  const paceEl = document.getElementById('gpsPace');
+  const statusEl = document.getElementById('gpsStatus');
+  if (timeEl) timeEl.textContent = formatGpsTime(sec);
+  if (distEl) distEl.textContent = dist.toFixed(2);
+  if (paceEl) paceEl.textContent = formatPace(sec, dist);
+  if (statusEl) {
+    if (gpsState.running && !gpsState.paused) statusEl.textContent = `📍 GPS activo · ${gpsState.points.length} puntos`;
+    else if (gpsState.paused) statusEl.textContent = '⏸ GPS en pausa';
+    else if (gpsState.points.length) statusEl.textContent = 'GPS detenido — datos guardados';
+    else statusEl.textContent = 'Tocá Iniciar para registrar tu trail con GPS';
+  }
+  const last = gpsState.points[gpsState.points.length - 1];
+  const mapLink = document.getElementById('gpsMapLink');
+  if (mapLink && last) {
+    mapLink.href = `https://maps.google.com/?q=${last.lat},${last.lng}`;
+    mapLink.style.display = 'block';
+  }
+}
+
+function setGpsButtons(mode) {
+  const start = document.getElementById('gpsStartBtn');
+  const pause = document.getElementById('gpsPauseBtn');
+  const stop = document.getElementById('gpsStopBtn');
+  if (!start) return;
+  if (mode === 'running') {
+    start.style.display = 'none';
+    pause.style.display = 'block';
+    pause.textContent = '⏸ Pausar';
+    stop.style.display = 'block';
+  } else if (mode === 'paused') {
+    start.style.display = 'none';
+    pause.style.display = 'block';
+    pause.textContent = '▶ Reanudar';
+    stop.style.display = 'block';
+  } else {
+    start.style.display = 'block';
+    pause.style.display = 'none';
+    stop.style.display = 'none';
+  }
+}
+
+function persistGps(key) {
+  if (!savedData[key]) savedData[key] = {};
+  const dist = calcGpsDistance(gpsState.points);
+  const sec = getGpsElapsedSec();
+  savedData[key].gps = {
+    distanceKm: Math.round(dist * 100) / 100,
+    durationSec: Math.round(sec),
+    pace: formatPace(sec, dist),
+    points: gpsState.points.slice(-300),
+    updatedAt: new Date().toISOString(),
+    status: gpsState.running ? (gpsState.paused ? 'paused' : 'running') : 'stopped',
+  };
+  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+}
+
+function onGpsPosition(pos) {
+  const p = {
+    lat: pos.coords.latitude,
+    lng: pos.coords.longitude,
+    alt: pos.coords.altitude,
+    acc: pos.coords.accuracy,
+    ts: pos.timestamp,
+  };
+  const last = gpsState.points[gpsState.points.length - 1];
+  if (last && haversineKm(last, p) < 0.003) return;
+  gpsState.points.push(p);
+  updateGpsUI();
+  if (gpsState.key) persistGps(gpsState.key);
+}
+
+function onGpsError(err) {
+  const statusEl = document.getElementById('gpsStatus');
+  if (statusEl) statusEl.textContent = 'Error GPS: ' + (err.message || 'sin permiso');
+}
+
+function startGpsUIInterval() {
+  if (gpsState.uiTimer) clearInterval(gpsState.uiTimer);
+  gpsState.uiTimer = setInterval(updateGpsUI, 1000);
+}
+
+function startGps(key) {
+  if (!navigator.geolocation) {
+    alert('Tu dispositivo no soporta GPS.');
+    return;
+  }
+  if (gpsState.paused && gpsState.key === key) {
+    gpsState.pausedMs += Date.now() - gpsState.pauseStart;
+    gpsState.pauseStart = 0;
+    gpsState.paused = false;
+    gpsState.running = true;
+    setGpsButtons('running');
+    startGpsUIInterval();
+    persistGps(key);
+    return;
+  }
+  gpsState.key = key;
+  if (!gpsState.startTs) gpsState.startTs = Date.now();
+  gpsState.running = true;
+  gpsState.paused = false;
+  if (!gpsState.watchId) {
+    gpsState.watchId = navigator.geolocation.watchPosition(onGpsPosition, onGpsError, {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 15000,
+    });
+  }
+  setGpsButtons('running');
+  startGpsUIInterval();
+  updateGpsUI();
+  persistGps(key);
+}
+
+function pauseGps() {
+  if (!gpsState.running) return;
+  if (!gpsState.paused) {
+    gpsState.paused = true;
+    gpsState.pauseStart = Date.now();
+    if (gpsState.watchId) {
+      navigator.geolocation.clearWatch(gpsState.watchId);
+      gpsState.watchId = null;
+    }
+    setGpsButtons('paused');
+  } else {
+    gpsState.pausedMs += Date.now() - gpsState.pauseStart;
+    gpsState.pauseStart = 0;
+    gpsState.paused = false;
+    gpsState.watchId = navigator.geolocation.watchPosition(onGpsPosition, onGpsError, {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 15000,
+    });
+    setGpsButtons('running');
+  }
+  updateGpsUI();
+  if (gpsState.key) persistGps(gpsState.key);
+}
+
+function stopGps(key) {
+  if (gpsState.watchId) {
+    navigator.geolocation.clearWatch(gpsState.watchId);
+    gpsState.watchId = null;
+  }
+  if (gpsState.uiTimer) clearInterval(gpsState.uiTimer);
+  gpsState.uiTimer = null;
+  gpsState.running = false;
+  gpsState.paused = false;
+  const dist = calcGpsDistance(gpsState.points);
+  const sec = getGpsElapsedSec();
+  if (!savedData[key]) savedData[key] = {};
+  savedData[key].gps = {
+    distanceKm: Math.round(dist * 100) / 100,
+    durationSec: Math.round(sec),
+    pace: formatPace(sec, dist),
+    points: gpsState.points.slice(-300),
+    updatedAt: new Date().toISOString(),
+    status: 'stopped',
+  };
+  const timeInput = document.getElementById('w_time');
+  if (timeInput && !timeInput.value && sec > 0) {
+    const m = Math.round(sec / 60);
+    timeInput.value = `${m} min`;
+  }
+  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  setGpsButtons('idle');
+  updateGpsUI();
+  showSavedToast(`GPS: ${dist.toFixed(2)} km en ${formatGpsTime(sec)}`);
+  gpsState = { key: null, watchId: null, points: [], startTs: 0, pausedMs: 0, pauseStart: 0, uiTimer: null, running: false, paused: false };
+}
+
+function initGpsUI(key) {
+  const saved = (savedData[key] || {}).gps;
+  if (saved && saved.status === 'running') {
+    gpsState.key = key;
+    gpsState.points = saved.points || [];
+    gpsState.startTs = Date.now() - (saved.durationSec || 0) * 1000;
+    gpsState.running = true;
+    startGps(key);
+    return;
+  }
+  if (saved && saved.points && saved.points.length) {
+    gpsState.points = saved.points;
+    if (saved.status === 'stopped') {
+      const statusEl = document.getElementById('gpsStatus');
+      if (statusEl) statusEl.textContent = `Última salida: ${saved.distanceKm} km · ${saved.pace} min/km`;
+    }
+    gpsState.startTs = 0;
+    updateGpsUI();
+    const timeInput = document.getElementById('w_time');
+    if (timeInput && !timeInput.value && saved.durationSec) {
+      timeInput.value = `${Math.round(saved.durationSec / 60)} min`;
+    }
+  }
+  setGpsButtons('idle');
+  updateGpsUI();
+}
+
 function saveTrail(key) {
   const time = document.getElementById('w_time')?.value || '';
   const note = document.getElementById('noteInput')?.value || '';
@@ -1421,6 +1826,7 @@ function exportData() {
     version: 1,
     exportedAt: new Date().toISOString(),
     programStart: localStorage.getItem('esteban_program_start'),
+    notifications: localStorage.getItem('esteban_notifications'),
     training: savedData,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1451,6 +1857,10 @@ function handleImport(event) {
         localStorage.setItem('esteban_program_start', data.programStart);
         programStartDate = new Date(data.programStart + 'T12:00:00');
         initSettings();
+      }
+      if (data.notifications) {
+        localStorage.setItem('esteban_notifications', data.notifications);
+        initNotifSettings();
       }
       renderCalendar();
       showSavedToast('Datos importados');
@@ -1507,6 +1917,7 @@ function initPWA() {
 
 // ===== INIT =====
 initSettings();
+initNotifSettings();
 initPWA();
 renderCalendar();
 </script>
