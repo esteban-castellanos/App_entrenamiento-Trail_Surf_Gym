@@ -2,7 +2,16 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#7F77DD">
+<meta name="description" content="Plan de entrenamiento Surf, Gym y Trail con periodización, timers y registro de pesos.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Entreno">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <title>Entrenamiento — Esteban</title>
 <style>
   :root {
@@ -72,7 +81,7 @@
   .sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-radius: 20px 20px 0 0; z-index: 201; max-height: 90vh; overflow-y: auto; padding-bottom: 32px; transform: translateY(100%); transition: transform 0.3s ease; }
   .sheet.open { transform: translateY(0); }
   .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 0; }
-  .sheet-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); }
+  .sheet-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); position: relative; }
   .sheet-date { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
   .sheet-title { font-size: 18px; font-weight: 700; }
   .sheet-body { padding: 14px 16px; }
@@ -87,14 +96,30 @@
   .session-block.mob .session-block-title { color: var(--mob); }
 
   /* EXERCISE ROWS */
-  .ex-row { display: flex; align-items: flex-start; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); gap: 8px; }
-  .ex-row:last-child { border-bottom: none; }
+  .ex-item { border-bottom: 1px solid var(--border); }
+  .ex-item:last-child { border-bottom: none; }
+  .ex-row { display: flex; align-items: flex-start; justify-content: space-between; padding: 8px 0 4px; gap: 8px; }
+  .ex-item:last-child .ex-row { padding-bottom: 8px; }
   .ex-info { flex: 1; }
   .ex-name { font-size: 14px; font-weight: 500; margin-bottom: 1px; }
   .ex-sub { font-size: 11px; color: var(--muted); }
   .ex-target { font-size: 12px; color: var(--gym-dark); background: var(--gym-light); padding: 3px 8px; border-radius: 10px; white-space: nowrap; font-weight: 600; }
   .ex-target.trail-tag { color: var(--trail-dark); background: var(--trail-light); }
   .ex-target.surf-tag { color: var(--surf-dark); background: var(--surf-light); }
+
+  /* SET TRACKER */
+  .set-tracker { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 0 10px; flex-wrap: wrap; }
+  .set-dots { display: flex; gap: 5px; flex-wrap: wrap; }
+  .set-dot { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--border); background: var(--card); font-size: 11px; font-weight: 700; color: var(--muted); cursor: pointer; flex-shrink: 0; }
+  .set-dot.done { background: var(--gym); border-color: var(--gym); color: white; }
+  .set-dot:active { transform: scale(0.92); }
+  .set-meta { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .set-count { font-size: 12px; font-weight: 700; color: var(--gym-dark); min-width: 32px; }
+  .set-count.all-done { color: var(--surf); }
+  .set-plus { border: none; background: var(--gym-light); color: var(--gym-dark); border-radius: 16px; padding: 6px 11px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .set-plus:active { opacity: 0.8; }
+  .set-done-label { font-size: 11px; color: var(--surf); font-weight: 600; }
+  .set-reset { border: none; background: none; color: var(--muted); font-size: 11px; cursor: pointer; text-decoration: underline; padding: 0; }
 
   /* LOG SECTION */
   .log-section { margin-top: 12px; }
@@ -130,7 +155,7 @@
   .week-card-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
 
   /* TABS */
-  .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .tabs { display: flex; align-items: center; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
   .tab { flex: 1; text-align: center; padding: 10px 4px; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; }
   .tab.active { color: var(--gym); border-bottom-color: var(--gym); }
 
@@ -161,6 +186,33 @@
   /* CALENDAR COMPLETION INDICATORS */
   .cal-checks { display: flex; gap: 2px; margin-top: 2px; flex-wrap: wrap; }
   .cal-check { width: 5px; height: 5px; border-radius: 50%; }
+
+  /* SETTINGS */
+  .settings-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px; font-size: 13px; cursor: pointer; color: var(--muted); }
+  .settings-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .settings-row label { font-size: 12px; color: var(--muted); }
+  .settings-row input[type="date"] { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; font-size: 13px; font-family: inherit; background: var(--bg); }
+  .data-btns { display: flex; gap: 8px; margin-top: 8px; }
+  .data-btn { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; font-size: 12px; cursor: pointer; color: var(--text); }
+  .duration-badge { font-size: 11px; color: var(--muted); background: var(--bg); padding: 3px 8px; border-radius: 10px; margin-left: auto; }
+
+  /* REST TIMER */
+  .rest-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .rest-bar-label { font-size: 12px; padding: 5px 8px; border-radius: 6px; flex: 1; min-width: 140px; }
+  .rest-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .rest-btn { border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .rest-btn:active { opacity: 0.8; transform: scale(0.97); }
+
+  .timer-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 300; background: var(--text); color: white; padding: 14px 16px 20px; box-shadow: 0 -4px 20px rgba(0,0,0,0.2); }
+  .timer-bar.active { display: block; }
+  .timer-bar.done { background: var(--surf); }
+  .timer-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .timer-label { font-size: 12px; opacity: 0.85; font-weight: 500; }
+  .timer-display { font-size: 42px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; line-height: 1; }
+  .timer-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .timer-action { flex: 1; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: white; border-radius: var(--radius-sm); padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .timer-action:active { background: rgba(255,255,255,0.25); }
+  .timer-action.primary { background: var(--gym); border-color: var(--gym); }
 </style>
 </head>
 <body>
@@ -180,6 +232,22 @@
     <div class="leg"><div class="leg-dot" style="background:var(--trail)"></div>Trail</div>
     <div class="leg"><div class="leg-dot" style="background:var(--mob)"></div>Movilidad</div>
     <div class="leg"><div class="leg-dot" style="background:var(--rest)"></div>Descanso</div>
+    <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
+  </div>
+  <div id="settingsPanel" style="display:none;padding:0 16px 10px">
+    <div class="settings-row">
+      <label for="programStart">Inicio del programa:</label>
+      <input type="date" id="programStart" onchange="setProgramStart(this.value)">
+    </div>
+    <div class="data-btns">
+      <button class="data-btn" onclick="exportData()">📤 Exportar datos</button>
+      <button class="data-btn" onclick="importData()">📥 Importar datos</button>
+    </div>
+    <button class="data-btn" id="installBtn" style="display:none;width:100%;margin-top:8px" onclick="installApp()">📲 Instalar app</button>
+    <div id="iosInstallHint" style="display:none;font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4">
+      En iPhone/iPad: tocá <strong>Compartir</strong> → <strong>Agregar a pantalla de inicio</strong>.
+    </div>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
   </div>
 </div>
 
@@ -206,6 +274,19 @@
     <div class="sheet-title" id="sheetTitle"></div>
   </div>
   <div class="sheet-body" id="sheetBody"></div>
+</div>
+
+<div class="timer-bar" id="timerBar">
+  <div class="timer-top">
+    <div class="timer-label" id="timerLabel">Descanso</div>
+    <div class="timer-label" id="timerStatus"></div>
+  </div>
+  <div class="timer-display" id="timerDisplay">3:00</div>
+  <div class="timer-actions">
+    <button class="timer-action" onclick="adjustRestTimer(15)">+15 seg</button>
+    <button class="timer-action" onclick="adjustRestTimer(-15)">−15 seg</button>
+    <button class="timer-action primary" onclick="stopRestTimer()">Cancelar</button>
+  </div>
 </div>
 
 <script>
@@ -284,45 +365,143 @@ function getAccessory(type, weekNum) {
   return { name: ACCESSORIES[type][0][set], key: ACCESSORIES[type][1][set] };
 }
 
-// Suggest weight based on last 3 weeks of logged weights
+// ===== SET TRACKER =====
+function parseSetCount(setsStr) {
+  if (!setsStr) return null;
+  const m = String(setsStr).match(/^(\d+)\s*[×x]/i);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function getTrackId(ex) {
+  return ex.key || ex.name.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 24);
+}
+
+const HEAVY_LIFT_KEYS = ['squat', 'deadlift', 'bench', 'military', 'pullups', 'dips', 'snatch', 'cleanjerk', 'pushjerk'];
+
+function getRestForExercise(blockName, ex) {
+  if (blockName === 'Bloque Olímpico') return 180;
+  if (blockName === 'Bloque Pliométrico') return 120;
+  if (blockName === 'Bloque de Fuerza') return HEAVY_LIFT_KEYS.includes(ex.key) ? 180 : 90;
+  if (blockName === 'Core') return 60;
+  return 0;
+}
+
+function renderSetTrackerHtml(key, trackId, total, done, restSec, exName) {
+  const safeName = exName.replace(/'/g, "\\'");
+  const dots = [];
+  for (let i = 1; i <= total; i++) {
+    dots.push(`<button class="set-dot${i <= done ? ' done' : ''}" onclick="setSeriesCount('${key}','${trackId}',${i},${total},${restSec},'${safeName}')">${i}</button>`);
+  }
+  const allDone = done >= total;
+  return `<div class="set-tracker" id="sets_${key}_${trackId}">
+    <div class="set-dots">${dots.join('')}</div>
+    <div class="set-meta">
+      <span class="set-count${allDone ? ' all-done' : ''}">${done}/${total}</span>
+      ${allDone
+        ? '<span class="set-done-label">✓ Listo</span>'
+        : `<button class="set-plus" onclick="markSeriesDone('${key}','${trackId}',${total},${restSec},'${safeName}')">+1 serie →</button>`}
+      ${done > 0 ? `<button class="set-reset" onclick="resetSeries('${key}','${trackId}',${total},${restSec},'${safeName}')">reset</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function refreshSetTracker(key, trackId, total, restSec, exName) {
+  const el = document.getElementById(`sets_${key}_${trackId}`);
+  if (!el) return;
+  const done = (savedData[key] || {}).setProgress?.[trackId] || 0;
+  el.outerHTML = renderSetTrackerHtml(key, trackId, total, done, restSec, exName);
+}
+
+function markSeriesDone(key, trackId, total, restSec, exName) {
+  if (!savedData[key]) savedData[key] = {};
+  if (!savedData[key].setProgress) savedData[key].setProgress = {};
+  const current = savedData[key].setProgress[trackId] || 0;
+  if (current >= total) return;
+  savedData[key].setProgress[trackId] = current + 1;
+  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  refreshSetTracker(key, trackId, total, restSec, exName);
+  const newCount = current + 1;
+  if (restSec > 0 && newCount < total) {
+    startRestTimer(restSec, `${exName} — serie ${newCount}/${total}`);
+  } else if (newCount >= total) {
+    showSavedToast(`✓ ${exName} — todas las series`);
+  }
+}
+
+function setSeriesCount(key, trackId, count, total, restSec, exName) {
+  if (!savedData[key]) savedData[key] = {};
+  if (!savedData[key].setProgress) savedData[key].setProgress = {};
+  const current = savedData[key].setProgress[trackId] || 0;
+  const next = (current === count) ? count - 1 : count;
+  savedData[key].setProgress[trackId] = Math.max(0, Math.min(total, next));
+  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  refreshSetTracker(key, trackId, total, restSec, exName);
+}
+
+function resetSeries(key, trackId, total, restSec, exName) {
+  if (!savedData[key]) savedData[key] = {};
+  if (!savedData[key].setProgress) savedData[key].setProgress = {};
+  savedData[key].setProgress[trackId] = 0;
+  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  refreshSetTracker(key, trackId, total, restSec, exName);
+}
+
+// Suggest weight based on last 4 weeks of logged weights (chronological)
 function suggestWeight(exKey) {
+  if (!exKey) return null;
   const today = new Date();
   const entries = [];
   for (let w = 1; w <= 4; w++) {
     const d = new Date(today);
     d.setDate(d.getDate() - w * 7);
-    // Check all days of that week
     for (let offset = -3; offset <= 3; offset++) {
       const check = new Date(d);
       check.setDate(check.getDate() + offset);
       const key = dateKey(check.getFullYear(), check.getMonth(), check.getDate());
       const weights = (savedData[key] || {}).weights || {};
-      if (weights[exKey]) entries.push(parseFloat(weights[exKey]));
+      if (weights[exKey] != null && weights[exKey] !== '') {
+        entries.push({ date: check.getTime(), kg: parseFloat(weights[exKey]) });
+      }
     }
   }
+  // Backward compat: old logs used generic 'olympic' key
+  if (entries.length === 0 && ['pushjerk','snatch','cleanjerk'].includes(exKey)) {
+    return suggestWeight('olympic');
+  }
   if (entries.length === 0) return null;
-  const last = entries[entries.length - 1];
-  // Check if stagnated (same weight 3+ times)
-  if (entries.length >= 3) {
-    const last3 = entries.slice(-3);
+  entries.sort((a, b) => a.date - b.date);
+  const values = entries.map(e => e.kg);
+  const last = values[values.length - 1];
+  if (values.length >= 3) {
+    const last3 = values.slice(-3);
     const stagnated = last3.every(v => v === last3[0]);
     if (stagnated) return { kg: last, stagnated: true };
   }
-  // Suggest +2.5kg progression
   return { kg: last + 2.5, stagnated: false };
 }
 
-// Detect stagnation for alert in sheet
-function checkStagnation(weekNum) {
+// Detect stagnation for lifts trained on a given gym day
+function checkStagnation(dow) {
+  const liftsByDay = {
+    1: [
+      { key: 'pushjerk', label: 'Push jerk' },
+      { key: 'bench', label: 'Press de banca' },
+      { key: 'military', label: 'Press militar' },
+    ],
+    3: [
+      { key: 'snatch', label: 'Snatch' },
+      { key: 'cleanjerk', label: 'Clean & jerk' },
+      { key: 'squat', label: 'Front squat' },
+      { key: 'deadlift', label: 'Peso muerto' },
+    ],
+    5: [
+      { key: 'cleanjerk', label: 'Clean & jerk' },
+      { key: 'pullups', label: 'Dominadas' },
+      { key: 'military', label: 'Press militar' },
+    ],
+  };
   const alerts = [];
-  const mainLifts = [
-    { key: 'olympic', label: 'Olímpico' },
-    { key: 'squat', label: 'Front squat' },
-    { key: 'deadlift', label: 'Peso muerto' },
-    { key: 'pullups', label: 'Dominadas' },
-    { key: 'military', label: 'Press militar' },
-  ];
-  for (const lift of mainLifts) {
+  for (const lift of (liftsByDay[dow] || [])) {
     const s = suggestWeight(lift.key);
     if (s && s.stagnated) alerts.push(lift.label);
   }
@@ -502,7 +681,18 @@ const TRAIL_PROGRESSION = {
 let currentDate = new Date();
 let viewYear = currentDate.getFullYear();
 let viewMonth = currentDate.getMonth();
-let programStartDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+
+function loadProgramStartDate() {
+  const saved = localStorage.getItem('esteban_program_start');
+  if (saved) return new Date(saved + 'T12:00:00');
+  // Default: first Monday on or before today
+  const d = new Date(currentDate);
+  const day = d.getDay();
+  const diff = day === 0 ? 6 : day - 1;
+  d.setDate(d.getDate() - diff);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+let programStartDate = loadProgramStartDate();
 
 // Load from localStorage
 let savedData = {};
@@ -527,7 +717,7 @@ function getDayPlan(date) {
 function getTrailForDate(date) {
   const dow = date.getDay();
   const weekNum = getWeekNumber(date);
-  const idx = Math.min(weekNum, 7);
+  const idx = Math.min(Math.floor(weekNum / 2) * 2 + (weekNum % 2), 7);
   if (dow === 2) return TRAIL_PROGRESSION.martes[idx];
   if (dow === 6) return TRAIL_PROGRESSION.sabado[idx];
   return null;
@@ -558,7 +748,6 @@ function renderCalendar() {
     const key = dateKey(viewYear, viewMonth, d);
     const plan = getDayPlan(date);
     const isToday = (d === currentDate.getDate() && viewMonth === currentDate.getMonth() && viewYear === currentDate.getFullYear());
-    const hasSaved = savedData[key] && (savedData[key].note || savedData[key].done);
 
     const div = document.createElement('div');
     div.className = 'cal-day' + (isToday ? ' today' : '');
@@ -700,15 +889,19 @@ function openSheet(date) {
   // GYM
   if (plan.type === 'gym' && plan.gym) {
     const weekNum = getWeekNumber(date);
+    const dow = date.getDay();
     const block = getBlock(weekNum);
     const blockLabel = getBlockLabel(weekNum);
     const blockColors = ['var(--surf)', 'var(--gym)', 'var(--trail)'];
     const accSet = getAccessorySet(weekNum);
-    const stagnated = checkStagnation(weekNum);
+    const stagnated = checkStagnation(dow);
+    const SESSION_DURATION = { 1: 70, 3: 80, 5: 75 };
+    const duration = SESSION_DURATION[dow] || 75;
 
     body += `<div class="tabs">
       <div class="tab active" onclick="switchTab(this,'plan')">Programa</div>
       <div class="tab" onclick="switchTab(this,'log')">Registrar pesos</div>
+      <span class="duration-badge">~${duration} min</span>
     </div>`;
 
     // Block indicator
@@ -731,7 +924,6 @@ function openSheet(date) {
     body += `<div class="tab-content active" id="tab-plan">`;
 
     // Build dynamic exercise list based on day
-    const dow = date.getDay();
     let dynamicBlocks = [];
 
     if (dow === 1) { // Lunes — Push
@@ -743,17 +935,17 @@ function openSheet(date) {
           { name: 'Press con barra vacía', sets: '2 × 8', tag: '', key: '' },
         ]},
         { name: 'Bloque Olímpico', exercises: [
-          { name: 'Push jerk / Split jerk', sets: getPrescription('pushjerk', weekNum), tag: 'surf', key: 'olympic' },
+          { name: 'Push jerk / Split jerk', sets: getPrescription('pushjerk', weekNum), tag: 'surf', key: 'pushjerk' },
         ]},
         { name: 'Bloque Pliométrico', exercises: [
           { name: 'Plyo push-ups', sets: '4 × 6', tag: 'surf', key: '' },
           { name: 'Med ball chest pass a pared', sets: '3 × 10', tag: 'surf', key: '' },
         ]},
         { name: 'Bloque de Fuerza', exercises: [
-          { name: 'Press de banca con mancuernas', sets: getPrescription('bench', weekNum), tag: 'surf', key: 'squat' },
-          { name: 'Fondos en paralelas con peso', sets: getPrescription('dips', weekNum), tag: 'surf', key: '' },
+          { name: 'Press de banca con mancuernas', sets: getPrescription('bench', weekNum), tag: 'surf', key: 'bench' },
+          { name: 'Fondos en paralelas con peso', sets: getPrescription('dips', weekNum), tag: 'surf', key: 'dips' },
           { name: 'Press militar con mancuernas', sets: getPrescription('military', weekNum), tag: 'surf', key: 'military' },
-          { name: getAccessory('push_acc', weekNum).name, sets: getPrescription(getAccessory('push_acc', weekNum).key, weekNum), tag: '', key: '' },
+          { name: getAccessory('push_acc', weekNum).name, sets: getPrescription(getAccessory('push_acc', weekNum).key, weekNum), tag: '', key: getAccessory('push_acc', weekNum).key },
         ]},
         { name: 'Core', exercises: [
           { name: 'Pallof press con cable', sets: getPrescription('core', weekNum) + ' c/lado', tag: 'surf', key: '' },
@@ -777,8 +969,8 @@ function openSheet(date) {
           { name: 'Snatch con barra vacía', sets: '3 × 5', tag: '', key: '' },
         ]},
         { name: 'Bloque Olímpico', exercises: [
-          { name: 'Snatch', sets: getPrescription('snatch', weekNum), tag: 'surf', key: 'olympic' },
-          { name: 'Clean & jerk / Power clean', sets: getPrescription('cleanjerk', weekNum), tag: 'surf', key: 'olympic' },
+          { name: 'Snatch', sets: getPrescription('snatch', weekNum), tag: 'surf', key: 'snatch' },
+          { name: 'Clean & jerk / Power clean', sets: getPrescription('cleanjerk', weekNum), tag: 'surf', key: 'cleanjerk' },
         ]},
         { name: 'Bloque Pliométrico', exercises: [
           { name: 'Box jumps', sets: '4 × 5 (máx potencia)', tag: 'trail', key: '' },
@@ -788,9 +980,9 @@ function openSheet(date) {
         { name: 'Bloque de Fuerza', exercises: [
           { name: 'Front squat', sets: getPrescription('frontsquat', weekNum), tag: 'trail', key: 'squat' },
           { name: 'Peso muerto rumano', sets: getPrescription('deadlift', weekNum), tag: 'trail', key: 'deadlift' },
-          { name: legsAcc.name, sets: getPrescription(legsAcc.key, weekNum), tag: 'trail', key: '' },
-          { name: legsVol.name, sets: getPrescription(legsVol.key, weekNum), tag: 'trail', key: '' },
-          { name: 'Elevaciones de gemelos', sets: getPrescription('calves', weekNum), tag: 'trail', key: '' },
+          { name: legsAcc.name, sets: getPrescription(legsAcc.key, weekNum), tag: 'trail', key: legsAcc.key },
+          { name: legsVol.name, sets: getPrescription(legsVol.key, weekNum), tag: 'trail', key: legsVol.key },
+          { name: 'Elevaciones de gemelos', sets: getPrescription('calves', weekNum), tag: 'trail', key: 'calves' },
         ]},
         { name: 'Core', exercises: [
           { name: 'Wood chop con cable', sets: getPrescription('core', weekNum) + ' c/lado', tag: 'surf', key: '' },
@@ -813,7 +1005,7 @@ function openSheet(date) {
           { name: 'Facepull liviano', sets: '2 × 10', tag: '', key: '' },
         ]},
         { name: 'Bloque Olímpico', exercises: [
-          { name: 'Clean & jerk', sets: getPrescription('cleanjerk', weekNum), tag: 'surf', key: 'olympic' },
+          { name: 'Clean & jerk', sets: getPrescription('cleanjerk', weekNum), tag: 'surf', key: 'cleanjerk' },
         ]},
         { name: 'Bloque Pliométrico', exercises: [
           { name: 'Plyo push-ups', sets: '4 × 6', tag: 'surf', key: '' },
@@ -822,9 +1014,9 @@ function openSheet(date) {
         ]},
         { name: 'Bloque de Fuerza', exercises: [
           { name: 'Dominadas con peso', sets: getPrescription('pullups', weekNum), tag: 'surf', key: 'pullups' },
-          { name: pullAcc.name, sets: getPrescription(pullAcc.key, weekNum), tag: 'surf', key: 'deadlift' },
+          { name: pullAcc.name, sets: getPrescription(pullAcc.key, weekNum), tag: 'surf', key: pullAcc.key },
           { name: 'Press militar con barra', sets: getPrescription('military', weekNum), tag: 'surf', key: 'military' },
-          { name: 'Facepull con cable', sets: getPrescription('facepull', weekNum), tag: 'surf', key: '' },
+          { name: 'Facepull con cable', sets: getPrescription('facepull', weekNum), tag: 'surf', key: 'facepull' },
           { name: 'Curl de bíceps', sets: '3 × 12', tag: 'surf', key: '' },
         ]},
         { name: 'Core', exercises: [
@@ -840,12 +1032,32 @@ function openSheet(date) {
       ];
     }
 
-    for (const block of dynamicBlocks) {
-      body += `<div class="session-block gym"><div class="session-block-title">${block.name}</div>`;
-      for (const ex of block.exercises) {
-        const tagClass = ex.tag === 'surf' ? 'surf-tag' : ex.tag === 'trail' ? 'trail-tag' : '';
-        const tagLabel = ex.tag === 'surf' ? '🏄' : ex.tag === 'trail' ? '🏃' : '';
-        // Weight suggestion for main lifts
+    // Rest time per block type
+    const REST_TIMES = {
+      'Entrada en calor':  null,
+      'Bloque Olímpico':   { label: 'Descanso entre series: 3 min', color: 'var(--surf-dark)', bg: 'var(--surf-light)', btnColor: 'var(--surf-dark)', btnBg: 'var(--surf-light)', timers: [{ sec: 180, label: '▶ 3 min' }] },
+      'Bloque Pliométrico':{ label: 'Descanso entre series: 2 min', color: '#3C3489', bg: '#EEEDFE', btnColor: '#3C3489', btnBg: '#EEEDFE', timers: [{ sec: 120, label: '▶ 2 min' }] },
+      'Bloque de Fuerza':  { label: 'Squat/muerto: 2–3 min · Accesorios: 90 seg', color: 'var(--trail-dark)', bg: 'var(--trail-light)', btnColor: 'var(--trail-dark)', btnBg: 'var(--trail-light)', timers: [{ sec: 180, label: '▶ 3 min' }, { sec: 90, label: '▶ 90 seg' }] },
+      'Core':              { label: 'Descanso entre series: 60 seg', color: 'var(--muted)', bg: 'var(--bg)', btnColor: 'var(--muted)', btnBg: 'var(--rest-light)', timers: [{ sec: 60, label: '▶ 60 seg' }] },
+      'Movilidad final':   null,
+    };
+
+    const setProgress = saved.setProgress || {};
+
+    for (const blk of dynamicBlocks) {
+      const rest = REST_TIMES[blk.name];
+      body += `<div class="session-block gym"><div class="session-block-title">${blk.name}</div>`;
+      if (rest) {
+        const timerBtns = rest.timers.map(t =>
+          `<button class="rest-btn" style="background:${rest.btnBg};color:${rest.btnColor}" onclick="startRestTimer(${t.sec},'${blk.name} — ${t.label.replace('▶ ','')}')">${t.label}</button>`
+        ).join('');
+        body += `<div class="rest-bar">
+          <div class="rest-bar-label" style="background:${rest.bg};color:${rest.color}">⏱ ${rest.label}</div>
+          <div class="rest-btns">${timerBtns}</div>
+        </div>`;
+      }
+      for (const ex of blk.exercises) {
+        const tagLabel = ex.tag === 'surf' ? '🏄 ' : ex.tag === 'trail' ? '🏃 ' : '';
         let weightHint = '';
         if (ex.key) {
           const sug = suggestWeight(ex.key);
@@ -856,50 +1068,75 @@ function openSheet(date) {
             weightHint = `<div style="font-size:11px;padding:2px 7px;border-radius:8px;background:${bg};color:${color};margin-top:3px">${icon} ${sug.kg} kg sugerido</div>`;
           }
         }
-        body += `<div class="ex-row">
-          <div class="ex-info">
-            <div class="ex-name">${tagLabel ? tagLabel + ' ' : ''}${ex.name}</div>
-            ${weightHint}
+        const totalSets = parseSetCount(ex.sets);
+        const trackId = getTrackId(ex);
+        const doneSets = setProgress[trackId] || 0;
+        const restSec = totalSets ? getRestForExercise(blk.name, ex) : 0;
+        const setTracker = totalSets
+          ? renderSetTrackerHtml(key, trackId, totalSets, doneSets, restSec, ex.name)
+          : '';
+        body += `<div class="ex-item">
+          <div class="ex-row">
+            <div class="ex-info">
+              <div class="ex-name">${tagLabel}${ex.name}</div>
+              ${weightHint}
+            </div>
+            <div class="ex-target">${ex.sets}</div>
           </div>
-          <div class="ex-target">${ex.sets}</div>
+          ${setTracker}
         </div>`;
       }
       body += `</div>`;
     }
 
-    // Accessory rotation notice
     if (accSet === 1) {
-      body += `<div style="font-size:12px;color:var(--muted);padding:8px 0;border-top:1px solid var(--border);margin-top:4px">🔄 Rotación de accesorios activa (semana ${weekNum+1})</div>`;
+      body += `<div style="font-size:12px;color:var(--muted);padding:8px 0;border-top:1px solid var(--border);margin-top:4px">🔄 Rotación B de accesorios activa — semana ${weekNum+1}</div>`;
+    } else {
+      body += `<div style="font-size:12px;color:var(--muted);padding:8px 0;border-top:1px solid var(--border);margin-top:4px">🔄 Rotación A de accesorios activa — semana ${weekNum+1}</div>`;
     }
 
     body += `</div>`;
 
-    // Log tab
+    // Log tab — build exercise list from the session's weighted blocks only
     const savedWeights = saved.weights || {};
     const savedNote = saved.note || '';
-    body += `<div class="tab-content" id="tab-log">
-      <div class="log-label">Pesos usados hoy</div>`;
 
-    const mainExercises = [
-      { key: 'olympic', label: 'Olímpico (snatch / clean / jerk)' },
-      { key: 'squat', label: 'Front squat / Press banca' },
-      { key: 'deadlift', label: 'Peso muerto' },
-      { key: 'pullups', label: 'Dominadas (peso extra kg)' },
-      { key: 'military', label: 'Press militar' },
-    ];
+    // Collect exercises with weight keys from olympic and strength blocks only
+    const weightedBlockNames = ['Bloque Olímpico', 'Bloque de Fuerza'];
+    const logExercises = [];
+    const seenKeys = new Set();
 
-    for (const ex of mainExercises) {
+    for (const blk of dynamicBlocks) {
+      if (!weightedBlockNames.includes(blk.name)) continue;
+      for (const ex of blk.exercises) {
+        if (!ex.key) continue;
+        const logKey = ex.key;
+        if (!seenKeys.has(logKey)) {
+          seenKeys.add(logKey);
+          logExercises.push({ key: logKey, label: ex.name, block: blk.name });
+        }
+      }
+    }
+
+    body += `<div class="tab-content" id="tab-log">`;
+
+    let currentBlock = '';
+    for (const ex of logExercises) {
+      if (ex.block !== currentBlock) {
+        currentBlock = ex.block;
+        body += `<div class="log-label" style="margin-top:${currentBlock === logExercises[0].block ? '0' : '12px'}">${currentBlock}</div>`;
+      }
       const sug = suggestWeight(ex.key);
-      const hint = sug ? `placeholder="${sug.stagnated ? '⚠ estancado' : 'sugerido: ' + sug.kg + ' kg'}"` : 'placeholder="kg"';
+      const phText = sug ? (sug.stagnated ? '⚠ estancado' : `sug: ${sug.kg} kg`) : 'kg';
       body += `<div class="log-row">
         <div style="font-size:13px;flex:1;color:var(--muted)">${ex.label}</div>
-        <input class="log-input" style="max-width:90px" type="number" ${hint} id="w_${ex.key}" value="${savedWeights[ex.key] || ''}">
+        <input class="log-input" style="max-width:100px" type="number" placeholder="${phText}" id="w_${ex.key}" value="${savedWeights[ex.key] || ''}">
       </div>`;
     }
 
     body += `<div class="log-label" style="margin-top:12px">Notas del día</div>
       <textarea class="log-textarea" id="noteInput" placeholder="¿Cómo estuvo la sesión? Energía, técnica, sensaciones...">${savedNote}</textarea>
-      <button class="save-btn" onclick="saveDay('${key}')">Guardar sesión ✓</button>
+      <button class="save-btn" onclick="saveDay('${key}', ${JSON.stringify(logExercises.map(e=>e.key))})">Guardar sesión ✓</button>
     </div>`;
   }
 
@@ -969,7 +1206,105 @@ function openSheet(date) {
   document.getElementById('sheet').classList.add('open');
 }
 
+// ===== REST TIMER =====
+let restTimerId = null;
+let restRemaining = 0;
+let restLabel = '';
+
+function formatTimer(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function updateTimerDisplay() {
+  const bar = document.getElementById('timerBar');
+  const display = document.getElementById('timerDisplay');
+  const label = document.getElementById('timerLabel');
+  const status = document.getElementById('timerStatus');
+  if (!bar) return;
+  display.textContent = formatTimer(Math.max(0, restRemaining));
+  label.textContent = restLabel;
+  status.textContent = restRemaining > 0 ? 'Descansando…' : '';
+  bar.classList.toggle('done', restRemaining === 0 && bar.classList.contains('active'));
+}
+
+function playTimerDone() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.15, 0.3].forEach((delay) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.value = 0.3;
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.1);
+    });
+  } catch (e) {}
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+}
+
+function stopRestTimer() {
+  if (restTimerId) clearInterval(restTimerId);
+  restTimerId = null;
+  restRemaining = 0;
+  const bar = document.getElementById('timerBar');
+  const sheet = document.getElementById('sheet');
+  if (bar) {
+    bar.classList.remove('active', 'done');
+    document.getElementById('timerDisplay').textContent = '0:00';
+    document.getElementById('timerStatus').textContent = '';
+  }
+  if (sheet) sheet.style.paddingBottom = '32px';
+}
+
+function finishRestTimer() {
+  if (restTimerId) clearInterval(restTimerId);
+  restTimerId = null;
+  restRemaining = 0;
+  updateTimerDisplay();
+  document.getElementById('timerDisplay').textContent = '¡Listo!';
+  document.getElementById('timerStatus').textContent = 'Siguiente serie';
+  playTimerDone();
+  setTimeout(() => {
+    if (!restTimerId) stopRestTimer();
+  }, 2500);
+}
+
+function startRestTimer(seconds, label) {
+  stopRestTimer();
+  restRemaining = seconds;
+  restLabel = label;
+  const bar = document.getElementById('timerBar');
+  const sheet = document.getElementById('sheet');
+  bar.classList.add('active');
+  bar.classList.remove('done');
+  if (sheet) sheet.style.paddingBottom = '150px';
+  updateTimerDisplay();
+  restTimerId = setInterval(() => {
+    restRemaining--;
+    if (restRemaining <= 0) {
+      finishRestTimer();
+    } else {
+      updateTimerDisplay();
+    }
+  }, 1000);
+}
+
+function adjustRestTimer(delta) {
+  if (!restTimerId && restRemaining <= 0) return;
+  restRemaining = Math.max(0, restRemaining + delta);
+  if (restRemaining === 0) {
+    finishRestTimer();
+  } else {
+    updateTimerDisplay();
+  }
+}
+
 function closeSheet() {
+  stopRestTimer();
   document.getElementById('overlay').classList.remove('open');
   document.getElementById('sheet').classList.remove('open');
 }
@@ -1002,13 +1337,17 @@ function toggleComplete(key, type) {
 }
 
 // ===== SAVE =====
-function saveDay(key) {
+function saveDay(key, exKeys) {
   const weights = {};
-  ['olympic','squat','deadlift','pullups','military'].forEach(k => {
+  const keys = exKeys || [];
+  keys.forEach(k => {
     const el = document.getElementById('w_' + k);
-    if (el && el.value) weights[k] = el.value;
+    if (el && el.value) weights[k] = parseFloat(el.value);
   });
   const note = document.getElementById('noteInput')?.value || '';
+  if (!savedData[key]) savedData[key] = {};
+  if (!savedData[key].completions) savedData[key].completions = {};
+  savedData[key].completions.gym = true;
   savedData[key] = { ...savedData[key], weights, note, done: true };
   localStorage.setItem('esteban_training', JSON.stringify(savedData));
   showSavedToast();
@@ -1018,6 +1357,9 @@ function saveDay(key) {
 function saveTrail(key) {
   const time = document.getElementById('w_time')?.value || '';
   const note = document.getElementById('noteInput')?.value || '';
+  if (!savedData[key]) savedData[key] = {};
+  if (!savedData[key].completions) savedData[key].completions = {};
+  savedData[key].completions.trail = true;
   savedData[key] = { ...savedData[key], time, note, done: true };
   localStorage.setItem('esteban_training', JSON.stringify(savedData));
   showSavedToast();
@@ -1032,10 +1374,10 @@ function saveNote(key) {
   renderCalendar();
 }
 
-function showSavedToast() {
+function showSavedToast(msg) {
   const toast = document.createElement('div');
   toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:white;padding:10px 20px;border-radius:20px;font-size:14px;z-index:999;';
-  toast.textContent = '✓ Guardado';
+  toast.textContent = msg || '✓ Guardado';
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 2000);
 }
@@ -1047,7 +1389,125 @@ function changeMonth(dir) {
   renderCalendar();
 }
 
+// ===== SETTINGS & DATA =====
+function toggleSettings() {
+  const panel = document.getElementById('settingsPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function setProgramStart(val) {
+  if (!val) return;
+  localStorage.setItem('esteban_program_start', val);
+  programStartDate = new Date(val + 'T12:00:00');
+  renderCalendar();
+  showSavedToast('Fecha de inicio actualizada');
+}
+
+function initSettings() {
+  const input = document.getElementById('programStart');
+  if (input) {
+    const y = programStartDate.getFullYear();
+    const m = String(programStartDate.getMonth() + 1).padStart(2, '0');
+    const d = String(programStartDate.getDate()).padStart(2, '0');
+    input.value = `${y}-${m}-${d}`;
+    if (!localStorage.getItem('esteban_program_start')) {
+      localStorage.setItem('esteban_program_start', input.value);
+    }
+  }
+}
+
+function exportData() {
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    programStart: localStorage.getItem('esteban_program_start'),
+    training: savedData,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `entrenamiento-esteban-${dateKey(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate())}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showSavedToast('Datos exportados');
+}
+
+function importData() {
+  document.getElementById('importFile').click();
+}
+
+function handleImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.training) {
+        savedData = data.training;
+        localStorage.setItem('esteban_training', JSON.stringify(savedData));
+      }
+      if (data.programStart) {
+        localStorage.setItem('esteban_program_start', data.programStart);
+        programStartDate = new Date(data.programStart + 'T12:00:00');
+        initSettings();
+      }
+      renderCalendar();
+      showSavedToast('Datos importados');
+    } catch (err) {
+      alert('No se pudo leer el archivo. Verificá que sea un JSON exportado de esta app.');
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// Close sheet with Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeSheet();
+});
+
+// ===== PWA =====
+let deferredInstallPrompt = null;
+
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('installBtn');
+  if (btn && !isStandalone()) btn.style.display = 'block';
+});
+
+async function installApp() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'none';
+}
+
+function initPWA() {
+  if (isStandalone()) return;
+  if (isIOS()) {
+    const hint = document.getElementById('iosInstallHint');
+    if (hint) hint.style.display = 'block';
+  }
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+}
+
 // ===== INIT =====
+initSettings();
+initPWA();
 renderCalendar();
 </script>
 </body>
