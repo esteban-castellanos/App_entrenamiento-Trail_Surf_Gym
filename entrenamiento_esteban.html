@@ -268,13 +268,30 @@
     <div class="notif-row">
       <label class="notif-toggle"><input type="checkbox" id="timerNotif" checked onchange="saveNotifSettings()"> Aviso al terminar descanso</label>
     </div>
+    <div class="log-label" style="margin-top:8px">☁️ Sincronización Google</div>
+    <div class="notif-status" id="syncStatus">No configurado</div>
+    <div class="settings-row" style="flex-direction:column;align-items:stretch">
+      <label style="font-size:11px;color:var(--muted)">URL Apps Script (termina en /exec)</label>
+      <input type="url" id="syncUrl" placeholder="https://script.google.com/macros/s/.../exec" onchange="saveCloudSettings()" style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;font-size:12px;font-family:inherit;background:var(--bg);width:100%">
+    </div>
+    <div class="settings-row" style="flex-direction:column;align-items:stretch;margin-top:6px">
+      <label style="font-size:11px;color:var(--muted)">Token secreto (mismo que en Code.gs)</label>
+      <input type="password" id="syncSecret" placeholder="tu-token-secreto" onchange="saveCloudSettings()" style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;font-size:12px;font-family:inherit;background:var(--bg);width:100%">
+    </div>
+    <div class="notif-row" style="margin-top:6px">
+      <label class="notif-toggle"><input type="checkbox" id="autoSync" onchange="saveCloudSettings()"> Sincronizar al guardar</label>
+    </div>
+    <div class="data-btns" style="margin-top:8px">
+      <button class="data-btn" onclick="syncToCloud(true)">☁️ Sincronizar</button>
+      <button class="data-btn" onclick="pullFromCloud()">⬇️ Descargar</button>
+    </div>
     <div class="data-btns">
       <button class="data-btn" onclick="exportForAI()">🤖 Exportar para AI</button>
       <button class="data-btn" onclick="exportData()">📤 Backup completo</button>
       <button class="data-btn" onclick="importData()">📥 Importar</button>
     </div>
     <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4">
-      <strong>Para AI:</strong> descarga .json + .md + .jsonl → subilos a Google Drive en carpeta <em>Entrenamiento/</em>
+      <strong>AI en Drive:</strong> al sincronizar se actualizan .json, .md y .jsonl en carpeta <em>Entrenamiento Esteban</em>
     </div>
     <button class="data-btn" id="installBtn" style="display:none;width:100%;margin-top:8px" onclick="installApp()">📲 Instalar app</button>
     <div id="iosInstallHint" style="display:none;font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4">
@@ -1255,10 +1272,46 @@ function openSheet(date) {
   if (plan.type === 'trail') initGpsUI(key);
 }
 
-// ===== REST TIMER =====
+// ===== REST TIMER (timestamp-based — funciona con pantalla bloqueada) =====
 let restTimerId = null;
-let restRemaining = 0;
+let restEndAt = 0;
 let restLabel = '';
+let restWakeLock = null;
+const REST_TIMER_KEY = 'esteban_rest_timer';
+
+function getRestRemaining() {
+  if (!restEndAt) return 0;
+  return Math.max(0, Math.ceil((restEndAt - Date.now()) / 1000));
+}
+
+function persistRestTimer() {
+  if (!restEndAt) {
+    localStorage.removeItem(REST_TIMER_KEY);
+    return;
+  }
+  localStorage.setItem(REST_TIMER_KEY, JSON.stringify({ endAt: restEndAt, label: restLabel }));
+}
+
+function postToSW(msg) {
+  if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+  navigator.serviceWorker.ready.then(reg => reg.active?.postMessage(msg)).catch(() => {});
+}
+
+async function acquireWakeLock() {
+  try {
+    if ('wakeLock' in navigator && !restWakeLock) {
+      restWakeLock = await navigator.wakeLock.request('screen');
+      restWakeLock.addEventListener('release', () => { restWakeLock = null; });
+    }
+  } catch (e) {}
+}
+
+function releaseWakeLock() {
+  if (restWakeLock) {
+    restWakeLock.release().catch(() => {});
+    restWakeLock = null;
+  }
+}
 
 function formatTimer(sec) {
   const m = Math.floor(sec / 60);
@@ -1272,10 +1325,11 @@ function updateTimerDisplay() {
   const label = document.getElementById('timerLabel');
   const status = document.getElementById('timerStatus');
   if (!bar) return;
-  display.textContent = formatTimer(Math.max(0, restRemaining));
+  const remaining = getRestRemaining();
+  display.textContent = formatTimer(remaining);
   label.textContent = restLabel;
-  status.textContent = restRemaining > 0 ? 'Descansando…' : '';
-  bar.classList.toggle('done', restRemaining === 0 && bar.classList.contains('active'));
+  status.textContent = remaining > 0 ? 'Descansando…' : '';
+  bar.classList.toggle('done', remaining === 0 && bar.classList.contains('active'));
 }
 
 function playTimerDone() {
@@ -1293,70 +1347,150 @@ function playTimerDone() {
     });
   } catch (e) {}
   if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-  if (getNotifSettings().timerNotif) {
-    showNotification('⏱ Descanso terminado', restLabel || 'Siguiente serie');
+}
+
+function showTimerBar(active) {
+  const bar = document.getElementById('timerBar');
+  const sheet = document.getElementById('sheet');
+  if (!bar) return;
+  if (active) {
+    bar.classList.add('active');
+    bar.classList.remove('done');
+    if (sheet) sheet.style.paddingBottom = '150px';
+  } else {
+    bar.classList.remove('active', 'done');
+    if (sheet) sheet.style.paddingBottom = '32px';
+    const display = document.getElementById('timerDisplay');
+    const status = document.getElementById('timerStatus');
+    if (display) display.textContent = '0:00';
+    if (status) status.textContent = '';
   }
+}
+
+function tickRestTimer() {
+  if (!restEndAt) return;
+  const remaining = getRestRemaining();
+  if (remaining <= 0) {
+    finishRestTimer();
+    return;
+  }
+  updateTimerDisplay();
 }
 
 function stopRestTimer() {
   if (restTimerId) clearInterval(restTimerId);
   restTimerId = null;
-  restRemaining = 0;
-  const bar = document.getElementById('timerBar');
-  const sheet = document.getElementById('sheet');
-  if (bar) {
-    bar.classList.remove('active', 'done');
-    document.getElementById('timerDisplay').textContent = '0:00';
-    document.getElementById('timerStatus').textContent = '';
-  }
-  if (sheet) sheet.style.paddingBottom = '32px';
+  restEndAt = 0;
+  restLabel = '';
+  persistRestTimer();
+  postToSW({ type: 'cancelRest' });
+  releaseWakeLock();
+  showTimerBar(false);
 }
 
 function finishRestTimer() {
   if (restTimerId) clearInterval(restTimerId);
   restTimerId = null;
-  restRemaining = 0;
-  updateTimerDisplay();
-  document.getElementById('timerDisplay').textContent = '¡Listo!';
-  document.getElementById('timerStatus').textContent = 'Siguiente serie';
-  playTimerDone();
+  const label = restLabel;
+  restEndAt = 0;
+  restLabel = '';
+  persistRestTimer();
+  postToSW({ type: 'cancelRest' });
+  releaseWakeLock();
+  const bar = document.getElementById('timerBar');
+  if (bar) {
+    bar.classList.add('active', 'done');
+    document.getElementById('timerDisplay').textContent = '¡Listo!';
+    document.getElementById('timerStatus').textContent = 'Siguiente serie';
+  }
+  if (document.visibilityState === 'visible') playTimerDone();
   setTimeout(() => {
-    if (!restTimerId) stopRestTimer();
+    if (!restEndAt) showTimerBar(false);
   }, 2500);
 }
 
 function startRestTimer(seconds, label) {
   stopRestTimer();
-  restRemaining = seconds;
+  restEndAt = Date.now() + seconds * 1000;
   restLabel = label;
-  const bar = document.getElementById('timerBar');
-  const sheet = document.getElementById('sheet');
-  bar.classList.add('active');
-  bar.classList.remove('done');
-  if (sheet) sheet.style.paddingBottom = '150px';
-  updateTimerDisplay();
-  restTimerId = setInterval(() => {
-    restRemaining--;
-    if (restRemaining <= 0) {
-      finishRestTimer();
-    } else {
-      updateTimerDisplay();
-    }
-  }, 1000);
+  persistRestTimer();
+  postToSW({
+    type: 'scheduleRest',
+    endAt: restEndAt,
+    label: restLabel,
+    notify: getNotifSettings().timerNotif !== false,
+  });
+  acquireWakeLock();
+  showTimerBar(true);
+  tickRestTimer();
+  restTimerId = setInterval(tickRestTimer, 500);
 }
 
 function adjustRestTimer(delta) {
-  if (!restTimerId && restRemaining <= 0) return;
-  restRemaining = Math.max(0, restRemaining + delta);
-  if (restRemaining === 0) {
+  if (!restEndAt) return;
+  restEndAt += delta * 1000;
+  if (getRestRemaining() <= 0) {
     finishRestTimer();
-  } else {
-    updateTimerDisplay();
+    return;
   }
+  persistRestTimer();
+  postToSW({
+    type: 'scheduleRest',
+    endAt: restEndAt,
+    label: restLabel,
+    notify: getNotifSettings().timerNotif !== false,
+  });
+  updateTimerDisplay();
 }
 
+function resumeRestTimerIfNeeded() {
+  try {
+    const raw = localStorage.getItem(REST_TIMER_KEY);
+    if (!raw) return;
+    const { endAt, label } = JSON.parse(raw);
+    if (!endAt) {
+      localStorage.removeItem(REST_TIMER_KEY);
+      return;
+    }
+    if (endAt <= Date.now()) {
+      localStorage.removeItem(REST_TIMER_KEY);
+      restLabel = label || 'Descanso';
+      showTimerBar(true);
+      document.getElementById('timerDisplay').textContent = '¡Listo!';
+      document.getElementById('timerStatus').textContent = 'Siguiente serie';
+      document.getElementById('timerLabel').textContent = restLabel;
+      if (document.visibilityState === 'visible') playTimerDone();
+      restLabel = '';
+      setTimeout(() => showTimerBar(false), 2500);
+      return;
+    }
+    restEndAt = endAt;
+    restLabel = label || 'Descanso';
+    postToSW({
+      type: 'scheduleRest',
+      endAt: restEndAt,
+      label: restLabel,
+      notify: getNotifSettings().timerNotif !== false,
+    });
+    acquireWakeLock();
+    showTimerBar(true);
+    tickRestTimer();
+    if (restTimerId) clearInterval(restTimerId);
+    restTimerId = setInterval(tickRestTimer, 500);
+  } catch (e) {}
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && restEndAt) {
+    tickRestTimer();
+    acquireWakeLock();
+  }
+});
+window.addEventListener('pageshow', () => {
+  if (restEndAt) tickRestTimer();
+});
+
 function closeSheet() {
-  stopRestTimer();
   document.getElementById('overlay').classList.remove('open');
   document.getElementById('sheet').classList.remove('open');
 }
@@ -1386,6 +1520,7 @@ function toggleComplete(key, type) {
     }
   });
   renderCalendar();
+  maybeAutoSync();
 }
 
 // ===== SAVE =====
@@ -1404,6 +1539,7 @@ function saveDay(key, exKeys) {
   localStorage.setItem('esteban_training', JSON.stringify(savedData));
   showSavedToast();
   renderCalendar();
+  maybeAutoSync();
 }
 
 // ===== NOTIFICATIONS =====
@@ -1760,6 +1896,7 @@ function stopGps(key) {
   setGpsButtons('idle');
   updateGpsUI();
   showSavedToast(`GPS: ${dist.toFixed(2)} km en ${formatGpsTime(sec)}`);
+  maybeAutoSync();
   gpsState = {
     key: null, watchId: null, points: savedData[key]?.gps?.points || [],
     startTs: 0, pausedMs: 0, pauseStart: 0, uiTimer: null,
@@ -1809,6 +1946,7 @@ function saveTrail(key) {
   localStorage.setItem('esteban_training', JSON.stringify(savedData));
   showSavedToast();
   renderCalendar();
+  maybeAutoSync();
 }
 
 function saveNote(key) {
@@ -1817,6 +1955,7 @@ function saveNote(key) {
   localStorage.setItem('esteban_training', JSON.stringify(savedData));
   showSavedToast();
   renderCalendar();
+  maybeAutoSync();
 }
 
 function showSavedToast(msg) {
@@ -2078,6 +2217,136 @@ function exportForAI() {
   showSavedToast('3 archivos listos para AI');
 }
 
+// ===== CLOUD SYNC (Fase 2 — Google Apps Script) =====
+let syncDebounce = null;
+
+function getCloudSettings() {
+  try {
+    return JSON.parse(localStorage.getItem('esteban_cloud_sync') || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveCloudSettings() {
+  const cfg = {
+    url: (document.getElementById('syncUrl')?.value || '').trim(),
+    secret: (document.getElementById('syncSecret')?.value || '').trim(),
+    autoSync: !!document.getElementById('autoSync')?.checked,
+  };
+  localStorage.setItem('esteban_cloud_sync', JSON.stringify(cfg));
+  updateSyncStatus();
+}
+
+function initCloudSettings() {
+  const cfg = getCloudSettings();
+  const urlEl = document.getElementById('syncUrl');
+  const secEl = document.getElementById('syncSecret');
+  const autoEl = document.getElementById('autoSync');
+  if (urlEl) urlEl.value = cfg.url || '';
+  if (secEl) secEl.value = cfg.secret || '';
+  if (autoEl) autoEl.checked = !!cfg.autoSync;
+  updateSyncStatus();
+}
+
+function updateSyncStatus() {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  const cfg = getCloudSettings();
+  const last = localStorage.getItem('esteban_last_sync');
+  if (!cfg.url || !cfg.secret) {
+    el.textContent = 'Pegá URL y token → ver SETUP.md en el repo';
+    return;
+  }
+  el.textContent = last
+    ? `✅ Última sync: ${new Date(last).toLocaleString('es-CR')}`
+    : '✅ Configurado — tocá Sincronizar';
+}
+
+function buildCloudSyncPayload() {
+  const payload = buildAIExportPayload();
+  return {
+    secret: getCloudSettings().secret,
+    ...payload,
+    markdown: buildAIMarkdown(payload),
+    jsonl: buildAIJsonl(payload),
+  };
+}
+
+async function syncToCloud(showToast = true) {
+  const cfg = getCloudSettings();
+  if (!cfg.url || !cfg.secret) {
+    if (showToast) alert('Configurá la URL de Apps Script y el token en ⚙️');
+    return false;
+  }
+  const body = JSON.stringify(buildCloudSyncPayload());
+  try {
+    const res = await fetch(cfg.url, { method: 'POST', body });
+    const text = await res.text();
+    let result = {};
+    try { result = JSON.parse(text); } catch (e) {}
+    if (result.ok) {
+      localStorage.setItem('esteban_last_sync', result.synced_at || new Date().toISOString());
+      updateSyncStatus();
+      if (showToast) showSavedToast(`☁️ Sync OK — ${result.sessions || 0} sesiones`);
+      return true;
+    }
+    if (showToast) alert('Error sync: ' + (result.error || text.slice(0, 120)));
+    return false;
+  } catch (err) {
+    try {
+      await fetch(cfg.url, { method: 'POST', mode: 'no-cors', body });
+      localStorage.setItem('esteban_last_sync', new Date().toISOString());
+      updateSyncStatus();
+      if (showToast) showSavedToast('☁️ Enviado — revisá tu Google Sheet');
+      return true;
+    } catch (e2) {
+      if (showToast) alert('No se pudo conectar. Verificá URL y token.');
+      return false;
+    }
+  }
+}
+
+async function pullFromCloud() {
+  const cfg = getCloudSettings();
+  if (!cfg.url || !cfg.secret) {
+    alert('Configurá URL y token primero.');
+    return;
+  }
+  const pullUrl = cfg.url + '?action=pull&secret=' + encodeURIComponent(cfg.secret);
+  try {
+    const res = await fetch(pullUrl);
+    const result = await res.json();
+    if (!result.ok || !result.data) {
+      alert('No hay datos en la nube: ' + (result.error || 'desconocido'));
+      return;
+    }
+    const data = result.data;
+    if (data.raw_training) {
+      savedData = data.raw_training;
+      localStorage.setItem('esteban_training', JSON.stringify(savedData));
+    }
+    if (data.program_start) {
+      localStorage.setItem('esteban_program_start', data.program_start);
+      programStartDate = new Date(data.program_start + 'T12:00:00');
+      initSettings();
+    }
+    localStorage.setItem('esteban_last_sync', new Date().toISOString());
+    updateSyncStatus();
+    renderCalendar();
+    showSavedToast('⬇️ Datos restaurados desde Drive');
+  } catch (err) {
+    alert('Error al descargar. Verificá URL, token y que exista entrenamiento-ai.json en Drive.');
+  }
+}
+
+function maybeAutoSync() {
+  const cfg = getCloudSettings();
+  if (!cfg.autoSync || !cfg.url || !cfg.secret) return;
+  clearTimeout(syncDebounce);
+  syncDebounce = setTimeout(() => syncToCloud(false), 2000);
+}
+
 function exportData() {
   const payload = {
     version: 1,
@@ -2176,20 +2445,24 @@ async function installApp() {
 }
 
 function initPWA() {
-  if (isStandalone()) return;
-  if (isIOS()) {
+  if (!isStandalone() && isIOS()) {
     const hint = document.getElementById('iosInstallHint');
     if (hint) hint.style.display = 'block';
   }
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data?.type === 'restDone' && restEndAt) finishRestTimer();
+    });
   }
 }
 
 // ===== INIT =====
 initSettings();
 initNotifSettings();
+initCloudSettings();
 initPWA();
+resumeRestTimerIfNeeded();
 renderCalendar();
 </script>
 </body>

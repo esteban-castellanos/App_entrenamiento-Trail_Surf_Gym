@@ -1,4 +1,4 @@
-const CACHE = 'esteban-training-v3';
+const CACHE = 'esteban-training-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -7,6 +7,8 @@ const ASSETS = [
   './icons/icon-192.png',
   './icons/icon-512.png',
 ];
+
+let restTimeoutId = null;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -39,6 +41,42 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(event.request).then((r) => r || caches.match('./index.html')))
   );
 });
+
+self.addEventListener('message', (event) => {
+  const data = event.data || {};
+  if (data.type === 'scheduleRest') {
+    if (restTimeoutId) clearTimeout(restTimeoutId);
+    const delay = Math.max(0, data.endAt - Date.now());
+    if (delay === 0) {
+      maybeNotifyRestDone(data.label, data.notify);
+      return;
+    }
+    restTimeoutId = setTimeout(() => {
+      restTimeoutId = null;
+      maybeNotifyRestDone(data.label, data.notify);
+    }, delay);
+  }
+  if (data.type === 'cancelRest') {
+    if (restTimeoutId) clearTimeout(restTimeoutId);
+    restTimeoutId = null;
+  }
+});
+
+function maybeNotifyRestDone(label, notify) {
+  return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    list.forEach((c) => c.postMessage({ type: 'restDone' }));
+    const appVisible = list.some((c) => c.visibilityState === 'visible');
+    if (!notify || appVisible) return;
+    return self.registration.showNotification('⏱ Descanso terminado', {
+      body: label || 'Siguiente serie',
+      icon: 'icons/icon-192.png',
+      badge: 'icons/icon-192.png',
+      vibrate: [200, 100, 200],
+      tag: 'rest-timer',
+      renotify: true,
+    });
+  });
+}
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
