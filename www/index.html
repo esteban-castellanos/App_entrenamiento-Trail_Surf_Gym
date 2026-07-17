@@ -488,7 +488,7 @@ function markSeriesDone(key, trackId, total, restSec, exName) {
   const current = savedData[key].setProgress[trackId] || 0;
   if (current >= total) return;
   savedData[key].setProgress[trackId] = current + 1;
-  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  persistTraining(key);
   refreshSetTracker(key, trackId, total, restSec, exName);
   const newCount = current + 1;
   if (restSec > 0 && newCount < total) {
@@ -504,7 +504,7 @@ function setSeriesCount(key, trackId, count, total, restSec, exName) {
   const current = savedData[key].setProgress[trackId] || 0;
   const next = (current === count) ? count - 1 : count;
   savedData[key].setProgress[trackId] = Math.max(0, Math.min(total, next));
-  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  persistTraining(key);
   refreshSetTracker(key, trackId, total, restSec, exName);
 }
 
@@ -512,7 +512,7 @@ function resetSeries(key, trackId, total, restSec, exName) {
   if (!savedData[key]) savedData[key] = {};
   if (!savedData[key].setProgress) savedData[key].setProgress = {};
   savedData[key].setProgress[trackId] = 0;
-  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  persistTraining(key);
   refreshSetTracker(key, trackId, total, restSec, exName);
 }
 
@@ -770,9 +770,114 @@ function loadProgramStartDate() {
 }
 let programStartDate = loadProgramStartDate();
 
-// Load from localStorage
+// Load from localStorage (synchronous, so the first render is instant — IndexedDB
+// takes over as the durable primary store shortly after, in initLocalStore() below)
 let savedData = {};
 try { savedData = JSON.parse(localStorage.getItem('esteban_training') || '{}'); } catch(e) {}
+
+// ===== LOCAL STORE (Fase 2 — storage robusto) =====
+// localStorage guarda todo en un solo blob: una escritura corrupta o el límite de
+// cuota (~5-10MB) puede arruinar TODO el historial de una sola vez. IndexedDB no
+// tiene ese techo y guarda un registro por día, así que un problema en un solo día
+// no afecta al resto. Mantenemos localStorage como respaldo sincrónico (arranque
+// instantáneo, y red de seguridad si IndexedDB no está disponible) y usamos
+// IndexedDB como store principal en segundo plano.
+const IDB_NAME = 'estebanTrainingDB';
+const IDB_VERSION = 1;
+const IDB_STORE = 'days';
+let idbPromise = null;
+
+function openIdb() {
+  if (idbPromise) return idbPromise;
+  idbPromise = new Promise((resolve) => {
+    if (!('indexedDB' in window)) { resolve(null); return; }
+    try {
+      const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null); // degrade gracefully — localStorage keeps working
+    } catch (e) { resolve(null); }
+  });
+  return idbPromise;
+}
+
+async function idbPutDay(dateKey, dayData) {
+  const db = await openIdb();
+  if (!db) return;
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(dayData, dateKey);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) { /* best-effort — localStorage remains the source of truth on failure */ }
+}
+
+async function idbGetAllDays() {
+  const db = await openIdb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const store = tx.objectStore(IDB_STORE);
+      const result = {};
+      const req = store.openCursor();
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (cursor) { result[cursor.key] = cursor.value; cursor.continue(); }
+        else resolve(result);
+      };
+      req.onerror = () => resolve(null);
+    } catch (e) { resolve(null); }
+  });
+}
+
+async function idbReplaceAllDays(newSavedData) {
+  const db = await openIdb();
+  if (!db) return;
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      const store = tx.objectStore(IDB_STORE);
+      store.clear();
+      for (const [k, v] of Object.entries(newSavedData)) store.put(v, k);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {}
+}
+
+// Central write path for training data — replaces bare localStorage.setItem calls.
+// Pass the specific dateKey touched (fast path, used by almost every save) or omit
+// it after a bulk replace (import/restore) to resync the whole store.
+function persistTraining(dateKey) {
+  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  if (dateKey) idbPutDay(dateKey, savedData[dateKey]);
+  else idbReplaceAllDays(savedData);
+}
+
+// Runs once at boot: seeds IndexedDB the first time (from whatever localStorage
+// already has), or — on later boots — adopts IndexedDB as the source of truth and
+// re-renders if it had anything localStorage's synchronous read missed.
+async function initLocalStore() {
+  const idbDays = await idbGetAllDays();
+  if (idbDays === null) return; // IndexedDB unavailable in this WebView — localStorage-only is fine
+  if (Object.keys(idbDays).length === 0) {
+    if (Object.keys(savedData).length > 0) await idbReplaceAllDays(savedData);
+    return;
+  }
+  const merged = { ...savedData, ...idbDays };
+  const changed = JSON.stringify(merged) !== JSON.stringify(savedData);
+  savedData = merged;
+  if (changed) {
+    localStorage.setItem('esteban_training', JSON.stringify(savedData));
+    renderCalendar();
+  }
+}
 
 // ===== HELPERS =====
 const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -1660,7 +1765,7 @@ function toggleComplete(key, type) {
   if (!savedData[key]) savedData[key] = {};
   if (!savedData[key].completions) savedData[key].completions = {};
   savedData[key].completions[type] = !savedData[key].completions[type];
-  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  persistTraining(key);
 
   // Update button in place without closing sheet
   const btns = document.querySelectorAll('.complete-btn');
@@ -1689,7 +1794,7 @@ function saveDay(key, exKeys) {
   if (!savedData[key].completions) savedData[key].completions = {};
   savedData[key].completions.gym = true;
   savedData[key] = { ...savedData[key], weights, note, done: true };
-  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  persistTraining(key);
   showSavedToast();
   renderCalendar();
   maybeAutoSync();
@@ -1934,7 +2039,7 @@ function persistGps(key) {
     updatedAt: new Date().toISOString(),
     status: gpsState.running ? (gpsState.paused ? 'paused' : 'running') : 'stopped',
   };
-  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  persistTraining(key);
 }
 
 function onGpsPosition(pos) {
@@ -2053,7 +2158,7 @@ function stopGps(key) {
     const m = Math.round(sec / 60);
     timeInput.value = `${m} min`;
   }
-  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  persistTraining(key);
   setGpsButtons('idle');
   updateGpsUI();
   showSavedToast(`GPS: ${dist.toFixed(2)} km en ${formatGpsTime(sec)}`);
@@ -2104,7 +2209,7 @@ function saveTrail(key) {
   if (!savedData[key].completions) savedData[key].completions = {};
   savedData[key].completions.trail = true;
   savedData[key] = { ...savedData[key], time, note, done: true };
-  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  persistTraining(key);
   showSavedToast();
   renderCalendar();
   maybeAutoSync();
@@ -2113,7 +2218,7 @@ function saveTrail(key) {
 function saveNote(key) {
   const note = document.getElementById('noteInput')?.value || '';
   savedData[key] = { ...savedData[key], note, done: true };
-  localStorage.setItem('esteban_training', JSON.stringify(savedData));
+  persistTraining(key);
   showSavedToast();
   renderCalendar();
   maybeAutoSync();
@@ -2485,7 +2590,7 @@ async function pullFromCloud() {
     const data = result.data;
     if (data.raw_training) {
       savedData = data.raw_training;
-      localStorage.setItem('esteban_training', JSON.stringify(savedData));
+      persistTraining();
     }
     if (data.program_start) {
       localStorage.setItem('esteban_program_start', data.program_start);
@@ -2539,7 +2644,7 @@ function handleImport(event) {
       // Formato AI (Fase 1) — restaura desde raw_training
       if (data.raw_training && data.schema_version) {
         savedData = data.raw_training;
-        localStorage.setItem('esteban_training', JSON.stringify(savedData));
+        persistTraining();
         if (data.program_start) {
           localStorage.setItem('esteban_program_start', data.program_start);
           programStartDate = new Date(data.program_start + 'T12:00:00');
@@ -2552,7 +2657,7 @@ function handleImport(event) {
       }
       if (data.training) {
         savedData = data.training;
-        localStorage.setItem('esteban_training', JSON.stringify(savedData));
+        persistTraining();
       }
       if (data.programStart) {
         localStorage.setItem('esteban_program_start', data.programStart);
@@ -2637,6 +2742,7 @@ initCloudSettings();
 initPWA();
 resumeRestTimerIfNeeded();
 renderCalendar();
+initLocalStore();
 </script>
 </body>
 </html>
