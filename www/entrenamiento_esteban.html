@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#7F77DD">
 <meta name="description" content="Plan de entrenamiento Surf, Gym y Trail con periodización, timers y registro de pesos.">
 <meta name="mobile-web-app-capable" content="yes">
@@ -42,7 +42,7 @@
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
   /* HEADER */
-  .header { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 16px 10px; position: sticky; top: 0; z-index: 100; }
+  .header { background: var(--card); border-bottom: 1px solid var(--border); padding: calc(14px + env(safe-area-inset-top)) 16px 10px; position: sticky; top: 0; z-index: 100; }
   .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .app-title { font-size: 17px; font-weight: 600; color: var(--text); }
   .month-nav { display: flex; align-items: center; gap: 10px; }
@@ -78,7 +78,7 @@
   /* BOTTOM SHEET */
   .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; }
   .overlay.open { display: block; }
-  .sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-radius: 20px 20px 0 0; z-index: 201; max-height: 90vh; overflow-y: auto; padding-bottom: 32px; transform: translateY(100%); transition: transform 0.3s ease; }
+  .sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-radius: 20px 20px 0 0; z-index: 201; max-height: 90vh; overflow-y: auto; padding-bottom: calc(32px + env(safe-area-inset-bottom)); transform: translateY(100%); transition: transform 0.3s ease; }
   .sheet.open { transform: translateY(0); }
   .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 0; }
   .sheet-header { padding: 14px 44px 10px 16px; border-bottom: 1px solid var(--border); position: relative; }
@@ -222,7 +222,7 @@
   .rest-btn { border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
   .rest-btn:active { opacity: 0.8; transform: scale(0.97); }
 
-  .timer-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 300; background: var(--text); color: white; padding: 14px 16px 20px; box-shadow: 0 -4px 20px rgba(0,0,0,0.2); }
+  .timer-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 300; background: var(--text); color: white; padding: 14px 16px calc(20px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 20px rgba(0,0,0,0.2); }
   .timer-bar.active { display: block; }
   .timer-bar.done { background: var(--surf); }
   .timer-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
