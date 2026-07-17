@@ -1,8 +1,7 @@
-const CACHE = 'esteban-training-v5';
+const CACHE = 'esteban-training-v6';
 const ASSETS = [
   './',
   './index.html',
-  './entrenamiento_esteban.html',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',

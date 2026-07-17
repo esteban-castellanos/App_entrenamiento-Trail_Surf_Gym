@@ -276,15 +276,17 @@
       <label for="programStart">Inicio del programa:</label>
       <input type="date" id="programStart" onchange="setProgramStart(this.value)">
     </div>
-    <div class="log-label" style="margin-top:4px">Notificaciones</div>
-    <div class="notif-status" id="notifStatus">Sin permiso</div>
-    <button class="data-btn" style="width:100%;margin-bottom:8px" onclick="requestNotificationPermission()">🔔 Activar notificaciones</button>
-    <div class="notif-row">
-      <label class="notif-toggle"><input type="checkbox" id="dailyReminder" onchange="saveNotifSettings()"> Recordatorio matutino</label>
-      <input type="time" id="dailyReminderTime" value="06:30" onchange="saveNotifSettings()" style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 8px;font-size:13px;background:var(--bg)">
-    </div>
-    <div class="notif-row">
-      <label class="notif-toggle"><input type="checkbox" id="timerNotif" checked onchange="saveNotifSettings()"> Aviso al terminar descanso</label>
+    <div id="notifSection">
+      <div class="log-label" style="margin-top:4px">Notificaciones</div>
+      <div class="notif-status" id="notifStatus">Sin permiso</div>
+      <button class="data-btn" style="width:100%;margin-bottom:8px" onclick="requestNotificationPermission()">🔔 Activar notificaciones</button>
+      <div class="notif-row">
+        <label class="notif-toggle"><input type="checkbox" id="dailyReminder" onchange="saveNotifSettings()"> Recordatorio matutino</label>
+        <input type="time" id="dailyReminderTime" value="06:30" onchange="saveNotifSettings()" style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 8px;font-size:13px;background:var(--bg)">
+      </div>
+      <div class="notif-row">
+        <label class="notif-toggle"><input type="checkbox" id="timerNotif" checked onchange="saveNotifSettings()"> Aviso al terminar descanso</label>
+      </div>
     </div>
     <div class="log-label" style="margin-top:8px">☁️ Sincronización Google</div>
     <div class="notif-status" id="syncStatus">No configurado</div>
@@ -1774,6 +1776,7 @@ function getTodayReminderText() {
 
 function scheduleDailyReminder() {
   if (dailyReminderTimeout) clearTimeout(dailyReminderTimeout);
+  if (!('Notification' in window)) return;
   const settings = getNotifSettings();
   if (!settings.dailyReminder || Notification.permission !== 'granted') return;
   const [h, m] = (settings.dailyReminderTime || '06:30').split(':').map(Number);
@@ -1788,6 +1791,13 @@ function scheduleDailyReminder() {
 }
 
 function initNotifSettings() {
+  if (isNativeApp()) {
+    // El API de Notification no existe dentro del WebView nativo — se
+    // reemplaza por notificaciones nativas reales en una próxima fase.
+    const section = document.getElementById('notifSection');
+    if (section) section.style.display = 'none';
+    return;
+  }
   const settings = getNotifSettings();
   const daily = document.getElementById('dailyReminder');
   const time = document.getElementById('dailyReminderTime');
@@ -2579,6 +2589,12 @@ function isStandalone() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
 
+// True when running inside the Capacitor-wrapped native app (iOS/Android),
+// as opposed to a plain browser tab or installed PWA.
+function isNativeApp() {
+  return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+}
+
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredInstallPrompt = e;
@@ -2596,6 +2612,12 @@ async function installApp() {
 }
 
 function initPWA() {
+  if (isNativeApp()) {
+    // Ya es una app instalada de verdad: ni el aviso de "agregar a pantalla
+    // de inicio" ni el Service Worker (que podría tapar futuras
+    // actualizaciones del bundle nativo con contenido cacheado viejo) aplican.
+    return;
+  }
   if (!isStandalone() && isIOS()) {
     const hint = document.getElementById('iosInstallHint');
     if (hint) hint.style.display = 'block';
