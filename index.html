@@ -146,6 +146,24 @@
   .diff-3 { background: #FAECE7; color: #712B13; }
   .diff-4 { background: #FCEBEB; color: #501313; }
 
+  /* TRAIL SESSION (zonas de FC) */
+  .trail-session-card { border: 1px solid var(--trail-light); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 8px; background: var(--card); }
+  .trail-session-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .trail-session-type { font-size: 14px; font-weight: 700; color: var(--trail-dark); }
+  .trail-session-deload { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #712B13; background: #FAECE7; padding: 2px 8px; border-radius: 10px; }
+  .trail-zones { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .trail-zone-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .trail-zone-pct { font-weight: 700; color: var(--text); min-width: 34px; }
+  .trail-zone-tag { font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+  .trail-zone-tag.zone-1 { background: #E9F5FB; color: #0D5A78; }
+  .trail-zone-tag.zone-2 { background: #E1F5EE; color: #085041; }
+  .trail-zone-tag.zone-3 { background: #FAEEDA; color: #633806; }
+  .trail-zone-tag.zone-4 { background: #FAECE7; color: #712B13; }
+  .trail-zone-tag.zone-5 { background: #FCEBEB; color: #501313; }
+  .trail-zone-note { color: var(--muted); }
+  .trail-session-focus { font-size: 12px; color: var(--text); margin-top: 10px; }
+  .trail-session-rule { font-size: 12px; color: var(--trail-dark); background: var(--trail-light); border-radius: var(--radius-sm); padding: 8px 10px; margin-top: 8px; }
+
   /* WEEK SUMMARY */
   .week-summary { padding: 0 12px 12px; }
   .week-sum-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
@@ -426,7 +444,7 @@ function getTrackId(ex) {
   return ex.key || ex.name.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 24);
 }
 
-const HEAVY_LIFT_KEYS = ['squat', 'deadlift', 'bench', 'military', 'pullups', 'dips', 'snatch', 'cleanjerk', 'pushjerk'];
+const HEAVY_LIFT_KEYS = ['squat', 'deadlift', 'bench', 'military_db', 'military_bar', 'pullups', 'dips', 'snatch', 'cleanjerk', 'pushjerk'];
 
 function getRestForExercise(blockName, ex) {
   if (blockName === 'Bloque Olímpico') return 180;
@@ -518,6 +536,10 @@ function suggestWeight(exKey) {
   if (entries.length === 0 && ['pushjerk','snatch','cleanjerk'].includes(exKey)) {
     return suggestWeight('olympic');
   }
+  // Backward compat: old logs used shared 'military' key before splitting into military_db/military_bar
+  if (entries.length === 0 && ['military_db','military_bar'].includes(exKey)) {
+    return suggestWeight('military');
+  }
   if (entries.length === 0) return null;
   entries.sort((a, b) => a.date - b.date);
   const values = entries.map(e => e.kg);
@@ -536,7 +558,7 @@ function checkStagnation(dow) {
     1: [
       { key: 'pushjerk', label: 'Push jerk' },
       { key: 'bench', label: 'Press de banca' },
-      { key: 'military', label: 'Press militar' },
+      { key: 'military_db', label: 'Press militar (mancuernas)' },
     ],
     3: [
       { key: 'snatch', label: 'Snatch' },
@@ -547,7 +569,7 @@ function checkStagnation(dow) {
     5: [
       { key: 'cleanjerk', label: 'Clean & jerk' },
       { key: 'pullups', label: 'Dominadas' },
-      { key: 'military', label: 'Press militar' },
+      { key: 'military_bar', label: 'Press militar (barra)' },
     ],
   };
   const alerts = [];
@@ -579,6 +601,7 @@ const WEEK_PLAN = {
         { name: 'Bloque Pliométrico', exercises: [
           { name: 'Plyo push-ups', sets: '4 × 6', tag: 'surf' },
           { name: 'Med ball chest pass a pared', sets: '3 × 10', tag: 'surf' },
+          { name: 'Medicine ball overhead throw', sets: '3 × 8', tag: 'surf' },
         ]},
         { name: 'Bloque de Fuerza', exercises: [
           { name: 'Press de banca con mancuernas', sets: '4 × 8–10', tag: 'surf' },
@@ -630,6 +653,7 @@ const WEEK_PLAN = {
           { name: 'Front squat', sets: '4 × 5', tag: 'trail' },
           { name: 'Peso muerto rumano', sets: '3 × 8', tag: 'trail' },
           { name: 'Zancadas caminando', sets: '3 × 10 c/pierna', tag: 'trail' },
+          { name: 'Prensa de piernas', sets: '3 × 12', tag: 'trail' },
           { name: 'Elevaciones de gemelos', sets: '4 × 15–20', tag: 'trail' },
         ]},
         { name: 'Core', exercises: [
@@ -770,6 +794,110 @@ function getTrailForDate(date) {
   const idx = Math.min(Math.floor(weekNum / 2) * 2 + (weekNum % 2), 7);
   if (dow === 2) return TRAIL_PROGRESSION.martes[idx];
   if (dow === 6) return TRAIL_PROGRESSION.sabado[idx];
+  return null;
+}
+
+// ===== TRAIL SESSION ENGINE (zonas de FC) =====
+// FC máxima 184 ppm — zonas fijas del usuario
+const HR_MAX = 184;
+const HR_ZONES = [
+  { zone: 1, min: 92,  max: 110, label: 'Calentamiento' },
+  { zone: 2, min: 110, max: 129, label: 'Base aeróbica' },
+  { zone: 3, min: 129, max: 147, label: 'Umbral aeróbico' },
+  { zone: 4, min: 147, max: 166, label: 'Umbral anaeróbico' },
+  { zone: 5, min: 166, max: 184, label: 'Máximo esfuerzo' },
+];
+
+// Semanas 1–3 de cada bloque de 4 = carga · semana 4 = deload
+function getWeekType(weekNum) {
+  return (weekNum % 4 === 3) ? 'deload' : 'carga';
+}
+
+function hrZoneRange(zoneNum) {
+  const z = HR_ZONES.find(z => z.zone === zoneNum);
+  return z ? `${z.min}–${z.max} ppm` : '';
+}
+
+// Desnivel objetivo del sábado/martes según el bloque de periodización (reutiliza getBlock: 0/1/2, cicla cada 12 semanas)
+const MARTES_DESNIVEL_BY_BLOCK = [[80, 150], [150, 250], [200, 350]];
+const SABADO_DESNIVEL_BY_BLOCK = [[200, 350], [350, 550], [500, 800]];
+
+// Progresión de distancia del sábado: el punto de partida de cada bloque sube +2km
+// respecto al anterior, y dentro del bloque las semanas de carga se solapan (min = max de la semana previa).
+// Semana 3 de cada bloque tiene el salto más grande (+4). Al retomar tras el deload, la semana 1
+// del bloque siguiente arranca en el nivel de la semana 2 del bloque anterior ("con base del bloque anterior").
+function getSabadoDistanceKm(weekNum) {
+  const blockIndex = Math.floor(weekNum / 4);
+  const weekInBlock = weekNum % 4; // 0,1,2 = carga · 3 = deload
+  const blockStartMin = 10 + blockIndex * 2;
+  if (weekInBlock === 0) return [blockStartMin, blockStartMin + 2];
+  if (weekInBlock === 1) return [blockStartMin + 2, blockStartMin + 4];
+  return [blockStartMin + 4, blockStartMin + 8]; // semana 3
+}
+
+// Devuelve la prescripción completa de la sesión de trail para martes (dow=2) o sábado (dow=6)
+function getTrailSession(dow, weekNum) {
+  const weekType = getWeekType(weekNum);
+  const block = getBlock(weekNum);
+
+  if (dow === 2) { // Martes — Recuperación activa
+    if (weekType === 'deload') {
+      return {
+        type: 'Recuperación activa', weekType, block,
+        distanceKm: [4, 5],
+        desnivelM: [0, 80],
+        desnivelLabel: 'máximo 80 m',
+        zones: [
+          { pct: 100, zone: 2, note: 'todo el recorrido' },
+        ],
+        durationMin: [25, 35],
+        focus: 'Soltar. Máximo 129 ppm en todo momento.',
+        hrRule: 'Si superás 129 ppm, bajás el ritmo de inmediato hasta volver a zona 2.',
+      };
+    }
+    return {
+      type: 'Recuperación activa', weekType, block,
+      distanceKm: [6, 10],
+      desnivelM: MARTES_DESNIVEL_BY_BLOCK[block],
+      zones: [
+        { pct: 80, zone: 2, note: 'la mayoría del recorrido' },
+        { pct: 20, zone: 3, note: 'solo en subidas' },
+      ],
+      durationMin: [40, 60],
+      focus: 'Cadencia y técnica.',
+      hrRule: 'Si superás 147 ppm en subida, caminás hasta bajar a 125 ppm.',
+    };
+  }
+
+  if (dow === 6) { // Sábado — Desarrollo aeróbico
+    if (weekType === 'deload') {
+      return {
+        type: 'Desarrollo aeróbico', weekType, block,
+        distanceKm: [6, 8],
+        desnivelM: [100, 150],
+        zones: [
+          { pct: 100, zone: 2, note: 'todo el recorrido' },
+        ],
+        durationMin: [45, 60],
+        focus: 'Regeneración activa.',
+        hrRule: 'Sin superar 129 ppm en ningún momento.',
+      };
+    }
+    return {
+      type: 'Desarrollo aeróbico', weekType, block,
+      distanceKm: getSabadoDistanceKm(weekNum),
+      desnivelM: SABADO_DESNIVEL_BY_BLOCK[block],
+      zones: [
+        { pct: 70, zone: 2, note: 'la mayoría del recorrido' },
+        { pct: 25, zone: 3, note: 'terreno ondulado' },
+        { pct: 5,  zone: 4, note: 'solo en cimas' },
+      ],
+      durationMin: [70, 110],
+      focus: 'Tiempo en pies. Bajadas controladas.',
+      hrRule: 'Zona 4 solo en picos cortos — al llegar a la cima, bajar el ritmo rápido.',
+    };
+  }
+
   return null;
 }
 
@@ -990,11 +1118,12 @@ function openSheet(date) {
         { name: 'Bloque Pliométrico', exercises: [
           { name: 'Plyo push-ups', sets: '4 × 6', tag: 'surf', key: '' },
           { name: 'Med ball chest pass a pared', sets: '3 × 10', tag: 'surf', key: '' },
+          { name: 'Medicine ball overhead throw', sets: '3 × 8', tag: 'surf', key: '' },
         ]},
         { name: 'Bloque de Fuerza', exercises: [
           { name: 'Press de banca con mancuernas', sets: getPrescription('bench', weekNum), tag: 'surf', key: 'bench' },
           { name: 'Fondos en paralelas con peso', sets: getPrescription('dips', weekNum), tag: 'surf', key: 'dips' },
-          { name: 'Press militar con mancuernas', sets: getPrescription('military', weekNum), tag: 'surf', key: 'military' },
+          { name: 'Press militar con mancuernas', sets: getPrescription('military', weekNum), tag: 'surf', key: 'military_db' },
           { name: getAccessory('push_acc', weekNum).name, sets: getPrescription(getAccessory('push_acc', weekNum).key, weekNum), tag: '', key: getAccessory('push_acc', weekNum).key },
         ]},
         { name: 'Core', exercises: [
@@ -1065,7 +1194,7 @@ function openSheet(date) {
         { name: 'Bloque de Fuerza', exercises: [
           { name: 'Dominadas con peso', sets: getPrescription('pullups', weekNum), tag: 'surf', key: 'pullups' },
           { name: pullAcc.name, sets: getPrescription(pullAcc.key, weekNum), tag: 'surf', key: pullAcc.key },
-          { name: 'Press militar con barra', sets: getPrescription('military', weekNum), tag: 'surf', key: 'military' },
+          { name: 'Press militar con barra', sets: getPrescription('military', weekNum), tag: 'surf', key: 'military_bar' },
           { name: 'Facepull con cable', sets: getPrescription('facepull', weekNum), tag: 'surf', key: 'facepull' },
           { name: 'Curl de bíceps', sets: '3 × 12', tag: 'surf', key: '' },
         ]},
@@ -1193,12 +1322,36 @@ function openSheet(date) {
   // TRAIL
   if (plan.type === 'trail') {
     const trail = getTrailForDate(date);
-    const weekNum = getWeekNumber(date) + 1;
+    const weekNum0 = getWeekNumber(date);
+    const weekNum = weekNum0 + 1;
+    const session = getTrailSession(date.getDay(), weekNum0);
+
+    body += `<div class="session-block trail">
+      <div class="session-block-title">🏃 Trail — Semana ${weekNum}</div>`;
+
+    if (session) {
+      const desnivelText = session.desnivelLabel || `${session.desnivelM[0]}–${session.desnivelM[1]} m`;
+      body += `<div class="trail-session-card">
+        <div class="trail-session-head">
+          <span class="trail-session-type">${session.type}</span>
+          ${session.weekType === 'deload' ? '<span class="trail-session-deload">Deload</span>' : `<span class="trail-session-deload" style="color:var(--trail-dark);background:var(--trail-light)">Bloque ${session.block + 1} — carga</span>`}
+        </div>
+        <div class="trail-stats">
+          <div class="trail-stat"><div class="trail-stat-val">${session.distanceKm[0]}–${session.distanceKm[1]} km</div><div class="trail-stat-label">Distancia objetivo</div></div>
+          <div class="trail-stat"><div class="trail-stat-val">${desnivelText}</div><div class="trail-stat-label">Desnivel objetivo</div></div>
+          <div class="trail-stat"><div class="trail-stat-val">${session.durationMin[0]}–${session.durationMin[1]} min</div><div class="trail-stat-label">Tiempo estimado</div></div>
+        </div>
+        <div class="trail-zones">
+          ${session.zones.map(z => `<div class="trail-zone-row"><span class="trail-zone-pct">${z.pct}%</span><span class="trail-zone-tag zone-${z.zone}">Zona ${z.zone} · ${hrZoneRange(z.zone)}</span><span class="trail-zone-note">${z.note}</span></div>`).join('')}
+        </div>
+        <div class="trail-session-focus"><strong>Foco:</strong> ${session.focus}</div>
+        <div class="trail-session-rule">⚠️ ${session.hrRule}</div>
+      </div>`;
+    }
+
     if (trail) {
       const diffClass = `diff-${trail.diff}`;
-      body += `<div class="session-block trail">
-        <div class="session-block-title">🏃 Trail — Semana ${weekNum}</div>
-        <div class="trail-card">
+      body += `<div class="trail-card">
           <div class="trail-name">${trail.name}</div>
           <div class="trail-stats">
             <div class="trail-stat"><div class="trail-stat-val">${trail.km} km</div><div class="trail-stat-label">Distancia</div></div>
@@ -1206,12 +1359,10 @@ function openSheet(date) {
           </div>
           <div class="trail-diff ${diffClass}">${trail.diffLabel}</div>
           <div style="font-size:12px;color:var(--muted);margin-top:8px">${trail.note}</div>
-        </div>
-        <div style="font-size:13px;color:var(--muted);margin-top:4px">
-          ${date.getDay() === 2 ? 'Ritmo zona 2 — conversacional. Cuidado con las bajadas.' : 'Ritmo libre. Disfrutá el terreno.'}
-        </div>
       </div>`;
     }
+
+    body += `</div>`;
 
     body += `<div class="log-label" style="margin-top:12px">GPS en vivo</div>
       <div class="gps-panel" id="gpsPanel">
@@ -2004,7 +2155,7 @@ function initSettings() {
 const LIFT_LABELS = {
   snatch: 'Snatch', cleanjerk: 'Clean & jerk', pushjerk: 'Push jerk', olympic: 'Olímpico',
   squat: 'Front squat', deadlift: 'Peso muerto', bench: 'Press de banca',
-  pullups: 'Dominadas', military: 'Press militar', dips: 'Fondos',
+  pullups: 'Dominadas', military: 'Press militar', military_db: 'Press militar (mancuernas)', military_bar: 'Press militar (barra)', dips: 'Fondos',
   calves: 'Gemelos', facepull: 'Facepull',
   acc_legs_a: 'Acc. piernas', acc_legs_b: 'Acc. volumen piernas',
   acc_pull_a: 'Acc. pull', acc_push_a: 'Acc. push',
