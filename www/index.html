@@ -860,23 +860,23 @@ function persistTraining(dateKey) {
   else idbReplaceAllDays(savedData);
 }
 
-// Runs once at boot: seeds IndexedDB the first time (from whatever localStorage
-// already has), or — on later boots — adopts IndexedDB as the source of truth and
-// re-renders if it had anything localStorage's synchronous read missed.
+// Runs once at boot. localStorage/savedData is SIEMPRE la fuente de verdad — IndexedDB
+// nunca la sobrescribe, sólo se usa para recuperar datos si localStorage llegara vacío
+// (p. ej. si se borró por separado), y se resincroniza para quedar al día como backup.
 async function initLocalStore() {
   const idbDays = await idbGetAllDays();
-  if (idbDays === null) return; // IndexedDB unavailable in this WebView — localStorage-only is fine
-  if (Object.keys(idbDays).length === 0) {
-    if (Object.keys(savedData).length > 0) await idbReplaceAllDays(savedData);
-    return;
-  }
-  const merged = { ...savedData, ...idbDays };
-  const changed = JSON.stringify(merged) !== JSON.stringify(savedData);
-  savedData = merged;
-  if (changed) {
+  if (idbDays === null) return; // IndexedDB no disponible en este WebView — localStorage alcanza
+
+  if (Object.keys(savedData).length === 0 && Object.keys(idbDays).length > 0) {
+    // localStorage vino vacío pero IndexedDB tiene datos de una sesión anterior: recuperar.
+    savedData = idbDays;
     localStorage.setItem('esteban_training', JSON.stringify(savedData));
     renderCalendar();
+    return;
   }
+  // Caso normal: nunca pisar savedData con lo que haya en IndexedDB. Sólo lo sincronizamos
+  // para que quede al día como respaldo, en el mismo sentido siempre (savedData -> IndexedDB).
+  await idbReplaceAllDays(savedData);
 }
 
 // ===== HELPERS =====
