@@ -758,15 +758,17 @@ let currentDate = new Date();
 let viewYear = currentDate.getFullYear();
 let viewMonth = currentDate.getMonth();
 
+// Respaldo fijo en el código: si el teléfono perdiera el valor guardado (borrado manual,
+// restablecer el dispositivo, etc.), la app vuelve a esta fecha real en vez de "adivinar"
+// la semana actual — así nunca vuelve a mostrar "Semana 1" por error. Se puede pisar en
+// cualquier momento desde ⚙️ → "Inicio del programa" (eso queda guardado en el teléfono
+// y tiene prioridad sobre este valor).
+const PROGRAM_START_FALLBACK = '2026-07-01';
+
 function loadProgramStartDate() {
   const saved = localStorage.getItem('esteban_program_start');
-  if (saved) return new Date(saved + 'T12:00:00');
-  // Default: first Monday on or before today
-  const d = new Date(currentDate);
-  const day = d.getDay();
-  const diff = day === 0 ? 6 : day - 1;
-  d.setDate(d.getDate() - diff);
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const iso = saved || PROGRAM_START_FALLBACK;
+  return new Date(iso + 'T12:00:00');
 }
 let programStartDate = loadProgramStartDate();
 
