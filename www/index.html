@@ -1422,7 +1422,7 @@ function openSheet(date) {
 
     body += `<div class="log-label" style="margin-top:12px">Notas del día</div>
       <textarea class="log-textarea" id="noteInput" placeholder="¿Cómo estuvo la sesión? Energía, técnica, sensaciones...">${savedNote}</textarea>
-      <button class="save-btn" onclick="saveDay('${key}', ${JSON.stringify(logExercises.map(e=>e.key))})">Guardar sesión ✓</button>
+      <button class="save-btn" onclick="saveDay('${key}', ${JSON.stringify(logExercises.map(e=>e.key)).replace(/"/g, "'")})">Guardar sesión ✓</button>
     </div>`;
   }
 
