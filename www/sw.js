@@ -1,4 +1,4 @@
-const CACHE = 'esteban-training-v10';
+const CACHE = 'esteban-training-v11';
 const ASSETS = [
   './',
   './index.html',

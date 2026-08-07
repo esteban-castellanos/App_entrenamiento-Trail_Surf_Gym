@@ -3,71 +3,209 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#7F77DD">
+<meta name="theme-color" content="#0B0B10">
 <meta name="description" content="Plan de entrenamiento Surf, Gym y Trail con periodización, timers y registro de pesos.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Entreno">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
 <title>Entrenamiento — Esteban</title>
 <style>
   :root {
-    --surf: #1D9E75;
-    --surf-light: #E1F5EE;
-    --surf-dark: #085041;
-    --gym: #7F77DD;
-    --gym-light: #EEEDFE;
-    --gym-dark: #3C3489;
-    --trail: #BA7517;
-    --trail-light: #FAEEDA;
-    --trail-dark: #633806;
-    --rest: #888780;
-    --rest-light: #F1EFE8;
-    --rest-dark: #2C2C2A;
-    --mob: #D85A30;
-    --mob-light: #FAECE7;
-    --mob-dark: #4A1B0C;
-    --bg: #f8f7f4;
-    --card: #ffffff;
-    --border: rgba(0,0,0,0.08);
-    --text: #1a1a1a;
-    --muted: #666660;
-    --radius: 12px;
-    --radius-sm: 8px;
+    --surf: #2DD4A8;
+    --surf-light: rgba(45,212,168,0.14);
+    --surf-dark: #9AF0D4;
+    --gym: #8B7CFF;
+    --gym-light: rgba(139,124,255,0.16);
+    --gym-dark: #C4BCFF;
+    --trail: #F0A35E;
+    --trail-light: rgba(240,163,94,0.16);
+    --trail-dark: #FFD0A8;
+    --rest: #8A8A96;
+    --rest-light: rgba(138,138,150,0.14);
+    --rest-dark: #C8C8D0;
+    --mob: #FF7A59;
+    --mob-light: rgba(255,122,89,0.16);
+    --mob-dark: #FFC2B0;
+    --bg: #0B0B10;
+    --bg-elev: #12121A;
+    --card: #171722;
+    --card-2: #1E1E2C;
+    --border: rgba(255,255,255,0.08);
+    --text: #F4F4F8;
+    --muted: #9898A8;
+    --accent: #8B7CFF;
+    --accent-2: #5B8CFF;
+    --grad: linear-gradient(135deg, #8B7CFF 0%, #5B8CFF 100%);
+    --radius: 18px;
+    --radius-sm: 12px;
+    --shadow: 0 10px 30px rgba(0,0,0,0.35);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  body {
+    font-family: 'Outfit', sans-serif;
+    background:
+      radial-gradient(1200px 500px at 10% -10%, rgba(139,124,255,0.22), transparent 55%),
+      radial-gradient(900px 420px at 100% 0%, rgba(91,140,255,0.16), transparent 50%),
+      var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: calc(28px + env(safe-area-inset-bottom));
+  }
+  button, input, textarea { font-family: inherit; }
 
   /* HEADER */
-  .header { background: var(--card); border-bottom: 1px solid var(--border); padding: calc(14px + env(safe-area-inset-top)) 16px 10px; position: sticky; top: 0; z-index: 100; }
-  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-  .app-title { font-size: 17px; font-weight: 600; color: var(--text); }
-  .month-nav { display: flex; align-items: center; gap: 10px; }
-  .month-nav button { background: none; border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 13px; cursor: pointer; color: var(--text); }
-  .month-nav button:active { background: var(--bg); }
-  .month-label { font-size: 15px; font-weight: 600; min-width: 140px; text-align: center; }
+  .header {
+    padding: calc(14px + env(safe-area-inset-top)) 16px 8px;
+    position: sticky; top: 0; z-index: 100;
+    background: linear-gradient(180deg, rgba(11,11,16,0.96) 0%, rgba(11,11,16,0.82) 70%, rgba(11,11,16,0));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .app-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
+    background: var(--grad);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .header-actions { display: flex; align-items: center; gap: 8px; }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: 12px;
+    border: 1px solid var(--border); background: rgba(255,255,255,0.04);
+    color: var(--text); font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .icon-btn:active { transform: scale(0.96); background: rgba(255,255,255,0.08); }
+
+  /* PLAN HERO */
+  .plan-hero {
+    margin: 0 16px 14px;
+    padding: 18px 18px 16px;
+    border-radius: 22px;
+    background:
+      linear-gradient(145deg, rgba(139,124,255,0.28), rgba(91,140,255,0.08) 45%, rgba(23,23,34,0.95)),
+      var(--card);
+    border: 1px solid rgba(139,124,255,0.25);
+    box-shadow: var(--shadow);
+    animation: riseIn 0.45s ease both;
+  }
+  .plan-kicker { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gym-dark); margin-bottom: 6px; }
+  .plan-title { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; margin-bottom: 14px; }
+  .plan-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+  .plan-stat { background: rgba(0,0,0,0.22); border-radius: 14px; padding: 10px 8px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
+  .plan-stat-val { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .plan-stat-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .plan-progress-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .plan-progress-label { font-size: 12px; color: var(--muted); }
+  .plan-progress-val { font-size: 12px; font-weight: 700; color: var(--gym-dark); }
+  .plan-bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  .plan-bar > span { display: block; height: 100%; border-radius: 999px; background: var(--grad); transition: width 0.4s ease; }
+
+  /* WEEK SELECTOR */
+  .week-strip-wrap { padding: 0 16px 6px; }
+  .week-strip-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+  .week-strip {
+    display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .week-strip::-webkit-scrollbar { display: none; }
+  .week-chip {
+    flex: 0 0 auto; width: 52px; height: 52px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--card);
+    color: var(--muted); font-size: 12px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: transform 0.15s, border-color 0.15s, background 0.15s, color 0.15s;
+  }
+  .week-chip.done { background: rgba(45,212,168,0.12); border-color: rgba(45,212,168,0.35); color: var(--surf); }
+  .week-chip.active {
+    background: var(--grad); border-color: transparent; color: white;
+    box-shadow: 0 8px 20px rgba(139,124,255,0.35);
+    transform: scale(1.06);
+  }
+  .week-chip:active { transform: scale(0.96); }
+
+  /* ACTIVITY LIST */
+  .section { padding: 8px 16px 4px; }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+  .section-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+  .section-sub { font-size: 12px; color: var(--muted); }
+  .activity-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+  .activity-card {
+    display: grid; grid-template-columns: 4px 1fr auto; gap: 12px; align-items: center;
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 14px 14px 0; cursor: pointer;
+    transition: transform 0.12s, border-color 0.15s, background 0.15s;
+    animation: riseIn 0.4s ease both;
+  }
+  .activity-card:nth-child(2) { animation-delay: 0.04s; }
+  .activity-card:nth-child(3) { animation-delay: 0.08s; }
+  .activity-card:nth-child(4) { animation-delay: 0.12s; }
+  .activity-card:nth-child(5) { animation-delay: 0.16s; }
+  .activity-card:nth-child(6) { animation-delay: 0.2s; }
+  .activity-card:active { transform: scale(0.985); }
+  .activity-card.today { border-color: rgba(139,124,255,0.45); background: linear-gradient(90deg, rgba(139,124,255,0.12), var(--card) 40%); }
+  .activity-card.done { opacity: 0.85; }
+  .activity-accent { width: 4px; height: 70%; border-radius: 0 4px 4px 0; align-self: stretch; margin: auto 0; }
+  .activity-accent.surf { background: var(--surf); }
+  .activity-accent.gym { background: var(--gym); }
+  .activity-accent.trail { background: var(--trail); }
+  .activity-accent.rest { background: var(--rest); }
+  .activity-accent.mob { background: var(--mob); }
+  .activity-main { min-width: 0; padding-left: 2px; }
+  .activity-type { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+  .activity-name { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .activity-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .activity-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .activity-date { font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .activity-check {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: transparent;
+  }
+  .activity-check.on { background: var(--grad); border-color: transparent; color: white; }
+
+  /* MONTH MINI */
+  .month-panel {
+    margin: 0 16px 20px; padding: 14px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 22px;
+  }
+  .month-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .month-nav button {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+    color: var(--text); font-size: 16px; cursor: pointer;
+  }
+  .month-label { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
 
   /* LEGEND */
-  .legend { display: flex; gap: 10px; flex-wrap: wrap; padding: 0 16px 10px; }
+  .legend { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
   .leg { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
-  .leg-dot { width: 8px; height: 8px; border-radius: 2px; }
+  .leg-dot { width: 8px; height: 8px; border-radius: 3px; }
 
   /* WEEK LABELS */
-  .week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; padding: 0 12px; margin-bottom: 4px; }
+  .week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
   .week-day-label { text-align: center; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 0; }
 
   /* CALENDAR GRID */
-  .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; padding: 0 12px 12px; }
-  .cal-day { min-height: 56px; border-radius: var(--radius-sm); background: var(--card); border: 1px solid var(--border); padding: 4px; cursor: pointer; transition: transform 0.1s; position: relative; overflow: hidden; }
+  .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-day {
+    min-height: 52px; border-radius: 12px; background: var(--card-2);
+    border: 1px solid transparent; padding: 5px 4px; cursor: pointer;
+    transition: transform 0.1s, border-color 0.15s; position: relative; overflow: hidden;
+  }
   .cal-day:active { transform: scale(0.97); }
   .cal-day.empty { background: transparent; border-color: transparent; cursor: default; }
-  .cal-day.today { border-color: var(--gym); border-width: 2px; }
+  .cal-day.today { border-color: var(--gym); box-shadow: inset 0 0 0 1px rgba(139,124,255,0.35); }
   .cal-day-num { font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
-  .cal-day.today .cal-day-num { color: var(--gym); }
-  .cal-pill { font-size: 9px; font-weight: 600; border-radius: 3px; padding: 2px 4px; margin-bottom: 2px; line-height: 1.2; }
+  .cal-day.today .cal-day-num { color: var(--gym-dark); }
+  .cal-pill { font-size: 8px; font-weight: 700; border-radius: 5px; padding: 2px 3px; margin-bottom: 2px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pill-surf { background: var(--surf-light); color: var(--surf-dark); }
   .pill-gym { background: var(--gym-light); color: var(--gym-dark); }
   .pill-trail { background: var(--trail-light); color: var(--trail-dark); }
@@ -76,18 +214,30 @@
   .done-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--surf); position: absolute; top: 4px; right: 4px; }
 
   /* BOTTOM SHEET */
-  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; }
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.62); z-index: 200; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
   .overlay.open { display: block; }
-  .sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-radius: 20px 20px 0 0; z-index: 201; max-height: 90vh; overflow-y: auto; padding-bottom: calc(32px + env(safe-area-inset-bottom)); transform: translateY(100%); transition: transform 0.3s ease; }
+  .sheet {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--bg-elev); border-radius: 28px 28px 0 0; z-index: 201;
+    max-height: 92vh; overflow-y: auto;
+    padding-bottom: calc(32px + env(safe-area-inset-bottom));
+    transform: translateY(100%); transition: transform 0.32s cubic-bezier(0.22,1,0.36,1);
+    border-top: 1px solid var(--border); box-shadow: 0 -20px 50px rgba(0,0,0,0.45);
+  }
   .sheet.open { transform: translateY(0); }
-  .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 0; }
-  .sheet-header { padding: 14px 44px 10px 16px; border-bottom: 1px solid var(--border); position: relative; }
-  .sheet-date { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
-  .sheet-title { font-size: 18px; font-weight: 700; }
+  .sheet-handle { width: 40px; height: 4px; background: rgba(255,255,255,0.18); border-radius: 2px; margin: 12px auto 0; }
+  .sheet-header { padding: 14px 52px 12px 18px; border-bottom: 1px solid var(--border); position: relative; }
+  .sheet-date { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .sheet-title { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.03em; }
   .sheet-body { padding: 14px 16px; }
 
+  @keyframes riseIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   /* SESSION BLOCKS */
-  .session-block { background: var(--bg); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px; }
+  .session-block { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px; }
   .session-block-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
   .session-block.surf .session-block-title { color: var(--surf); }
   .session-block.gym .session-block-title { color: var(--gym); }
@@ -110,7 +260,7 @@
   /* SET TRACKER */
   .set-tracker { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 0 10px; flex-wrap: wrap; }
   .set-dots { display: flex; gap: 5px; flex-wrap: wrap; }
-  .set-dot { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--border); background: var(--card); font-size: 11px; font-weight: 700; color: var(--muted); cursor: pointer; flex-shrink: 0; }
+  .set-dot { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--border); background: var(--card-2); font-size: 11px; font-weight: 700; color: var(--muted); cursor: pointer; flex-shrink: 0; }
   .set-dot.done { background: var(--gym); border-color: var(--gym); color: white; }
   .set-dot:active { transform: scale(0.92); }
   .set-meta { display: flex; align-items: center; gap: 8px; margin-left: auto; }
@@ -124,82 +274,82 @@
   /* LOG SECTION */
   .log-section { margin-top: 12px; }
   .log-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
-  .log-textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 14px; font-family: inherit; color: var(--text); background: var(--bg); resize: none; min-height: 80px; }
+  .log-textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 14px; font-family: inherit; color: var(--text); background: var(--card-2); resize: none; min-height: 80px; }
   .log-textarea:focus { outline: none; border-color: var(--gym); }
   .log-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
-  .log-input { flex: 1; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 13px; font-family: inherit; color: var(--text); background: var(--bg); }
+  .log-input { flex: 1; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 13px; font-family: inherit; color: var(--text); background: var(--card-2); }
   .log-input:focus { outline: none; border-color: var(--gym); }
-  .save-btn { width: 100%; background: var(--gym); color: white; border: none; border-radius: var(--radius-sm); padding: 13px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 12px; }
-  .save-btn:active { opacity: 0.85; }
-  .saved-note { font-size: 13px; color: var(--muted); background: var(--bg); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 8px; white-space: pre-wrap; }
+  .save-btn { width: 100%; background: var(--grad); color: white; border: none; border-radius: 14px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 12px; box-shadow: 0 8px 20px rgba(139,124,255,0.3); }
+  .save-btn:active { opacity: 0.88; transform: scale(0.99); }
+  .saved-note { font-size: 13px; color: var(--muted); background: var(--card); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 8px; white-space: pre-wrap; }
 
   /* TRAIL INFO */
-  .trail-card { border: 1px solid var(--trail-light); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 8px; }
+  .trail-card { border: 1px solid rgba(240,163,94,0.25); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 8px; background: var(--trail-light); }
   .trail-name { font-size: 15px; font-weight: 700; color: var(--trail-dark); margin-bottom: 6px; }
   .trail-stats { display: flex; gap: 16px; }
   .trail-stat { }
   .trail-stat-val { font-size: 16px; font-weight: 700; color: var(--text); }
   .trail-stat-label { font-size: 11px; color: var(--muted); }
   .trail-diff { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 10px; margin-top: 8px; }
-  .diff-1 { background: #E1F5EE; color: #085041; }
-  .diff-2 { background: #FAEEDA; color: #633806; }
-  .diff-3 { background: #FAECE7; color: #712B13; }
-  .diff-4 { background: #FCEBEB; color: #501313; }
+  .diff-1 { background: var(--surf-light); color: var(--surf-dark); }
+  .diff-2 { background: var(--trail-light); color: var(--trail-dark); }
+  .diff-3 { background: var(--mob-light); color: var(--mob-dark); }
+  .diff-4 { background: rgba(255,80,80,0.18); color: #FFB0B0; }
 
   /* TRAIL SESSION (zonas de FC) */
-  .trail-session-card { border: 1px solid var(--trail-light); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 8px; background: var(--card); }
+  .trail-session-card { border: 1px solid rgba(240,163,94,0.25); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 8px; background: var(--card); }
   .trail-session-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .trail-session-type { font-size: 14px; font-weight: 700; color: var(--trail-dark); }
-  .trail-session-deload { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #712B13; background: #FAECE7; padding: 2px 8px; border-radius: 10px; }
+  .trail-session-deload { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mob-dark); background: var(--mob-light); padding: 2px 8px; border-radius: 10px; }
   .trail-zones { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
   .trail-zone-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
   .trail-zone-pct { font-weight: 700; color: var(--text); min-width: 34px; }
   .trail-zone-tag { font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
-  .trail-zone-tag.zone-1 { background: #E9F5FB; color: #0D5A78; }
-  .trail-zone-tag.zone-2 { background: #E1F5EE; color: #085041; }
-  .trail-zone-tag.zone-3 { background: #FAEEDA; color: #633806; }
-  .trail-zone-tag.zone-4 { background: #FAECE7; color: #712B13; }
-  .trail-zone-tag.zone-5 { background: #FCEBEB; color: #501313; }
+  .trail-zone-tag.zone-1 { background: rgba(91,140,255,0.18); color: #A8C4FF; }
+  .trail-zone-tag.zone-2 { background: var(--surf-light); color: var(--surf-dark); }
+  .trail-zone-tag.zone-3 { background: var(--trail-light); color: var(--trail-dark); }
+  .trail-zone-tag.zone-4 { background: var(--mob-light); color: var(--mob-dark); }
+  .trail-zone-tag.zone-5 { background: rgba(255,80,80,0.18); color: #FFB0B0; }
   .trail-zone-note { color: var(--muted); }
   .trail-session-focus { font-size: 12px; color: var(--text); margin-top: 10px; }
   .trail-session-rule { font-size: 12px; color: var(--trail-dark); background: var(--trail-light); border-radius: var(--radius-sm); padding: 8px 10px; margin-top: 8px; }
 
   /* WEEK SUMMARY */
-  .week-summary { padding: 0 12px 12px; }
+  .week-summary { padding: 0 16px 20px; }
   .week-sum-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
   .week-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .week-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; text-align: center; }
-  .week-card-val { font-size: 18px; font-weight: 700; }
+  .week-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 12px 10px; text-align: center; }
+  .week-card-val { font-size: 20px; font-weight: 700; }
   .week-card-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
 
   /* TABS */
   .tabs { display: flex; align-items: center; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
-  .tab { flex: 1; text-align: center; padding: 10px 4px; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; }
-  .tab.active { color: var(--gym); border-bottom-color: var(--gym); }
+  .tab { flex: 1; text-align: center; padding: 10px 4px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab.active { color: var(--gym-dark); border-bottom-color: var(--gym); }
 
   .tab-content { display: none; }
   .tab-content.active { display: block; }
 
-  .close-btn { position: absolute; top: 10px; right: 12px; background: var(--bg); border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 20px; cursor: pointer; color: var(--muted); display: flex; align-items: center; justify-content: center; z-index: 10; -webkit-tap-highlight-color: transparent; }
-  .close-btn:active { background: var(--border); }
+  .close-btn { position: absolute; top: 10px; right: 12px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 50%; width: 36px; height: 36px; font-size: 20px; cursor: pointer; color: var(--muted); display: flex; align-items: center; justify-content: center; z-index: 10; -webkit-tap-highlight-color: transparent; }
+  .close-btn:active { background: rgba(255,255,255,0.12); }
 
   /* COMPLETION BUTTONS */
   .complete-section { margin-bottom: 14px; }
   .complete-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
   .complete-btns { display: flex; flex-direction: column; gap: 8px; }
-  .complete-btn { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: var(--radius-sm); border: 2px solid var(--border); background: var(--card); cursor: pointer; transition: all 0.15s; }
+  .complete-btn { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--card); cursor: pointer; transition: all 0.15s; }
   .complete-btn:active { transform: scale(0.98); }
-  .complete-btn.done-surf { border-color: var(--surf); background: var(--surf-light); }
-  .complete-btn.done-gym { border-color: var(--gym); background: var(--gym-light); }
-  .complete-btn.done-trail { border-color: var(--trail); background: var(--trail-light); }
-  .complete-btn.done-mob { border-color: var(--mob); background: var(--mob-light); }
-  .complete-btn.done-rest { border-color: var(--rest); background: var(--rest-light); }
+  .complete-btn.done-surf { border-color: rgba(45,212,168,0.45); background: var(--surf-light); }
+  .complete-btn.done-gym { border-color: rgba(139,124,255,0.45); background: var(--gym-light); }
+  .complete-btn.done-trail { border-color: rgba(240,163,94,0.45); background: var(--trail-light); }
+  .complete-btn.done-mob { border-color: rgba(255,122,89,0.45); background: var(--mob-light); }
+  .complete-btn.done-rest { border-color: rgba(138,138,150,0.45); background: var(--rest-light); }
   .complete-btn-label { font-size: 14px; font-weight: 500; color: var(--text); }
   .complete-btn-check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
-  .complete-btn.done-surf .complete-btn-check { background: var(--surf); border-color: var(--surf); color: white; }
+  .complete-btn.done-surf .complete-btn-check { background: var(--surf); border-color: var(--surf); color: #0B0B10; }
   .complete-btn.done-gym .complete-btn-check { background: var(--gym); border-color: var(--gym); color: white; }
-  .complete-btn.done-trail .complete-btn-check { background: var(--trail); border-color: var(--trail); color: white; }
-  .complete-btn.done-mob .complete-btn-check { background: var(--mob); border-color: var(--mob); color: white; }
+  .complete-btn.done-trail .complete-btn-check { background: var(--trail); border-color: var(--trail); color: #0B0B10; }
+  .complete-btn.done-mob .complete-btn-check { background: var(--mob); border-color: var(--mob); color: #0B0B10; }
   .complete-btn.done-rest .complete-btn-check { background: var(--rest); border-color: var(--rest); color: white; }
 
   /* CALENDAR COMPLETION INDICATORS */
@@ -207,13 +357,24 @@
   .cal-check { width: 5px; height: 5px; border-radius: 50%; }
 
   /* SETTINGS */
-  .settings-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px; font-size: 13px; cursor: pointer; color: var(--muted); }
+  .settings-panel {
+    margin: 0 16px 12px; padding: 14px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+  }
   .settings-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
   .settings-row label { font-size: 12px; color: var(--muted); }
-  .settings-row input[type="date"] { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; font-size: 13px; font-family: inherit; background: var(--bg); }
+  .settings-row input[type="date"],
+  .settings-row input[type="url"],
+  .settings-row input[type="password"],
+  .settings-row input[type="time"] {
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 8px 10px; font-size: 13px; font-family: inherit;
+    background: var(--card-2); color: var(--text); width: 100%;
+  }
   .data-btns { display: flex; gap: 8px; margin-top: 8px; }
-  .data-btn { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; font-size: 12px; cursor: pointer; color: var(--text); }
-  .duration-badge { font-size: 11px; color: var(--muted); background: var(--bg); padding: 3px 8px; border-radius: 10px; margin-left: auto; }
+  .data-btn { flex: 1; background: var(--card-2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 8px; font-size: 12px; cursor: pointer; color: var(--text); font-weight: 600; }
+  .data-btn:active { background: rgba(255,255,255,0.08); }
+  .duration-badge { font-size: 11px; color: var(--muted); background: var(--card-2); padding: 3px 8px; border-radius: 10px; margin-left: auto; }
 
   /* REST TIMER */
   .rest-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
@@ -222,33 +383,33 @@
   .rest-btn { border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
   .rest-btn:active { opacity: 0.8; transform: scale(0.97); }
 
-  .timer-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 300; background: var(--text); color: white; padding: 14px 16px calc(20px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 20px rgba(0,0,0,0.2); }
+  .timer-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 300; background: #12121A; color: white; padding: 14px 16px calc(20px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); box-shadow: 0 -10px 30px rgba(0,0,0,0.4); }
   .timer-bar.active { display: block; }
-  .timer-bar.done { background: var(--surf); }
+  .timer-bar.done { background: #0F2A22; }
   .timer-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .timer-label { font-size: 12px; opacity: 0.85; font-weight: 500; }
   .timer-display { font-size: 42px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; line-height: 1; }
   .timer-actions { display: flex; gap: 8px; margin-top: 10px; }
-  .timer-action { flex: 1; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: white; border-radius: var(--radius-sm); padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
-  .timer-action:active { background: rgba(255,255,255,0.25); }
-  .timer-action.primary { background: var(--gym); border-color: var(--gym); }
+  .timer-action { flex: 1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14); color: white; border-radius: var(--radius-sm); padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .timer-action:active { background: rgba(255,255,255,0.16); }
+  .timer-action.primary { background: var(--grad); border-color: transparent; }
 
   /* GPS TRACKER */
-  .gps-panel { background: var(--trail-light); border: 1px solid var(--trail-light); border-radius: var(--radius-sm); padding: 12px; margin: 12px 0; }
+  .gps-panel { background: var(--trail-light); border: 1px solid rgba(240,163,94,0.25); border-radius: var(--radius-sm); padding: 12px; margin: 12px 0; }
   .gps-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; text-align: center; }
   .gps-stat-val { font-size: 20px; font-weight: 700; color: var(--trail-dark); font-variant-numeric: tabular-nums; }
   .gps-stat-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
   .gps-btns { display: flex; gap: 8px; }
   .gps-btn { flex: 1; border: none; border-radius: var(--radius-sm); padding: 11px; font-size: 13px; font-weight: 600; cursor: pointer; }
-  .gps-btn.start { background: var(--trail); color: white; }
+  .gps-btn.start { background: var(--trail); color: #0B0B10; }
   .gps-btn.pause { background: var(--card); color: var(--trail-dark); border: 1px solid var(--trail); }
-  .gps-btn.stop { background: var(--trail-dark); color: white; }
+  .gps-btn.stop { background: #3A2412; color: var(--trail-dark); }
   .gps-status { font-size: 11px; color: var(--trail-dark); margin-top: 8px; text-align: center; }
-  .gps-link { display: block; font-size: 12px; color: var(--gym); margin-top: 8px; text-align: center; text-decoration: none; }
+  .gps-link { display: block; font-size: 12px; color: var(--gym-dark); margin-top: 8px; text-align: center; text-decoration: none; }
 
   /* NOTIFICATIONS SETTINGS */
   .notif-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-  .notif-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .notif-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); }
   .notif-status { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
 </style>
 </head>
@@ -256,12 +417,82 @@
 
 <div class="header">
   <div class="header-top">
-    <div class="app-title">Entrenamiento 🏄</div>
-    <div class="month-nav">
-      <button onclick="changeMonth(-1)">‹</button>
-      <div class="month-label" id="monthLabel"></div>
-      <button onclick="changeMonth(1)">›</button>
+    <div class="app-title">Entrenamiento</div>
+    <div class="header-actions">
+      <button class="icon-btn" type="button" aria-label="Configuración" onclick="toggleSettings()">⚙</button>
     </div>
+  </div>
+</div>
+
+<div id="settingsPanel" class="settings-panel" style="display:none">
+  <div class="settings-row">
+    <label for="programStart">Inicio del programa:</label>
+    <input type="date" id="programStart" onchange="setProgramStart(this.value)">
+  </div>
+  <div id="notifSection">
+    <div class="log-label" style="margin-top:4px">Notificaciones</div>
+    <div class="notif-status" id="notifStatus">Sin permiso</div>
+    <button class="data-btn" style="width:100%;margin-bottom:8px" onclick="requestNotificationPermission()">Activar notificaciones</button>
+    <div class="notif-row">
+      <label class="notif-toggle"><input type="checkbox" id="dailyReminder" onchange="saveNotifSettings()"> Recordatorio matutino</label>
+      <input type="time" id="dailyReminderTime" value="06:30" onchange="saveNotifSettings()">
+    </div>
+    <div class="notif-row">
+      <label class="notif-toggle"><input type="checkbox" id="timerNotif" checked onchange="saveNotifSettings()"> Aviso al terminar descanso</label>
+    </div>
+  </div>
+  <div class="log-label" style="margin-top:8px">Sincronización Google</div>
+  <div class="notif-status" id="syncStatus">No configurado</div>
+  <div class="settings-row" style="flex-direction:column;align-items:stretch">
+    <label style="font-size:11px;color:var(--muted)">URL Apps Script (termina en /exec)</label>
+    <input type="url" id="syncUrl" placeholder="https://script.google.com/macros/s/.../exec" onchange="saveCloudSettings()">
+  </div>
+  <div class="settings-row" style="flex-direction:column;align-items:stretch;margin-top:6px">
+    <label style="font-size:11px;color:var(--muted)">Token secreto (mismo que en Code.gs)</label>
+    <input type="password" id="syncSecret" placeholder="tu-token-secreto" onchange="saveCloudSettings()">
+  </div>
+  <div class="notif-row" style="margin-top:6px">
+    <label class="notif-toggle"><input type="checkbox" id="autoSync" onchange="saveCloudSettings()"> Sincronizar al guardar</label>
+  </div>
+  <div class="data-btns" style="margin-top:8px">
+    <button class="data-btn" onclick="syncToCloud(true)">Sincronizar</button>
+    <button class="data-btn" onclick="pullFromCloud()">Descargar</button>
+  </div>
+  <div class="data-btns">
+    <button class="data-btn" onclick="exportForAI()">Exportar AI</button>
+    <button class="data-btn" onclick="exportData()">Backup</button>
+    <button class="data-btn" onclick="importData()">Importar</button>
+  </div>
+  <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4">
+    Al sincronizar se actualizan .json, .md y .jsonl en la carpeta <em>Entrenamiento Esteban</em>
+  </div>
+  <button class="data-btn" id="installBtn" style="display:none;width:100%;margin-top:8px" onclick="installApp()">Instalar app</button>
+  <div id="iosInstallHint" style="display:none;font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4">
+    En iPhone/iPad: tocá <strong>Compartir</strong> → <strong>Agregar a pantalla de inicio</strong>.
+  </div>
+  <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+</div>
+
+<div class="plan-hero" id="planHero"></div>
+
+<div class="week-strip-wrap">
+  <div class="week-strip-title">Progreso semanal</div>
+  <div class="week-strip" id="weekStrip"></div>
+</div>
+
+<div class="section">
+  <div class="section-head">
+    <div class="section-title">Actividades</div>
+    <div class="section-sub" id="weekRangeLabel"></div>
+  </div>
+  <div class="activity-list" id="activityList"></div>
+</div>
+
+<div class="month-panel">
+  <div class="month-nav">
+    <button type="button" onclick="changeMonth(-1)" aria-label="Mes anterior">‹</button>
+    <div class="month-label" id="monthLabel"></div>
+    <button type="button" onclick="changeMonth(1)" aria-label="Mes siguiente">›</button>
   </div>
   <div class="legend">
     <div class="leg"><div class="leg-dot" style="background:var(--surf)"></div>Surf</div>
@@ -269,69 +500,18 @@
     <div class="leg"><div class="leg-dot" style="background:var(--trail)"></div>Trail</div>
     <div class="leg"><div class="leg-dot" style="background:var(--mob)"></div>Movilidad</div>
     <div class="leg"><div class="leg-dot" style="background:var(--rest)"></div>Descanso</div>
-    <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
   </div>
-  <div id="settingsPanel" style="display:none;padding:0 16px 10px">
-    <div class="settings-row">
-      <label for="programStart">Inicio del programa:</label>
-      <input type="date" id="programStart" onchange="setProgramStart(this.value)">
-    </div>
-    <div id="notifSection">
-      <div class="log-label" style="margin-top:4px">Notificaciones</div>
-      <div class="notif-status" id="notifStatus">Sin permiso</div>
-      <button class="data-btn" style="width:100%;margin-bottom:8px" onclick="requestNotificationPermission()">🔔 Activar notificaciones</button>
-      <div class="notif-row">
-        <label class="notif-toggle"><input type="checkbox" id="dailyReminder" onchange="saveNotifSettings()"> Recordatorio matutino</label>
-        <input type="time" id="dailyReminderTime" value="06:30" onchange="saveNotifSettings()" style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 8px;font-size:13px;background:var(--bg)">
-      </div>
-      <div class="notif-row">
-        <label class="notif-toggle"><input type="checkbox" id="timerNotif" checked onchange="saveNotifSettings()"> Aviso al terminar descanso</label>
-      </div>
-    </div>
-    <div class="log-label" style="margin-top:8px">☁️ Sincronización Google</div>
-    <div class="notif-status" id="syncStatus">No configurado</div>
-    <div class="settings-row" style="flex-direction:column;align-items:stretch">
-      <label style="font-size:11px;color:var(--muted)">URL Apps Script (termina en /exec)</label>
-      <input type="url" id="syncUrl" placeholder="https://script.google.com/macros/s/.../exec" onchange="saveCloudSettings()" style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;font-size:12px;font-family:inherit;background:var(--bg);width:100%">
-    </div>
-    <div class="settings-row" style="flex-direction:column;align-items:stretch;margin-top:6px">
-      <label style="font-size:11px;color:var(--muted)">Token secreto (mismo que en Code.gs)</label>
-      <input type="password" id="syncSecret" placeholder="tu-token-secreto" onchange="saveCloudSettings()" style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;font-size:12px;font-family:inherit;background:var(--bg);width:100%">
-    </div>
-    <div class="notif-row" style="margin-top:6px">
-      <label class="notif-toggle"><input type="checkbox" id="autoSync" onchange="saveCloudSettings()"> Sincronizar al guardar</label>
-    </div>
-    <div class="data-btns" style="margin-top:8px">
-      <button class="data-btn" onclick="syncToCloud(true)">☁️ Sincronizar</button>
-      <button class="data-btn" onclick="pullFromCloud()">⬇️ Descargar</button>
-    </div>
-    <div class="data-btns">
-      <button class="data-btn" onclick="exportForAI()">🤖 Exportar para AI</button>
-      <button class="data-btn" onclick="exportData()">📤 Backup completo</button>
-      <button class="data-btn" onclick="importData()">📥 Importar</button>
-    </div>
-    <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4">
-      <strong>AI en Drive:</strong> al sincronizar se actualizan .json, .md y .jsonl en carpeta <em>Entrenamiento Esteban</em>
-    </div>
-    <button class="data-btn" id="installBtn" style="display:none;width:100%;margin-top:8px" onclick="installApp()">📲 Instalar app</button>
-    <div id="iosInstallHint" style="display:none;font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4">
-      En iPhone/iPad: tocá <strong>Compartir</strong> → <strong>Agregar a pantalla de inicio</strong>.
-    </div>
-    <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+  <div class="week-days">
+    <div class="week-day-label">Lun</div>
+    <div class="week-day-label">Mar</div>
+    <div class="week-day-label">Mié</div>
+    <div class="week-day-label">Jue</div>
+    <div class="week-day-label">Vie</div>
+    <div class="week-day-label">Sáb</div>
+    <div class="week-day-label">Dom</div>
   </div>
+  <div class="calendar" id="calendar"></div>
 </div>
-
-<div class="week-days">
-  <div class="week-day-label">Lun</div>
-  <div class="week-day-label">Mar</div>
-  <div class="week-day-label">Mié</div>
-  <div class="week-day-label">Jue</div>
-  <div class="week-day-label">Vie</div>
-  <div class="week-day-label">Sáb</div>
-  <div class="week-day-label">Dom</div>
-</div>
-
-<div class="calendar" id="calendar"></div>
 
 <div class="week-summary" id="weekSummary"></div>
 
@@ -757,6 +937,7 @@ const TRAIL_PROGRESSION = {
 let currentDate = new Date();
 let viewYear = currentDate.getFullYear();
 let viewMonth = currentDate.getMonth();
+let selectedWeekNum = null; // filled after programStartDate loads
 
 // Respaldo fijo en el código: si el teléfono perdiera el valor guardado (borrado manual,
 // restablecer el dispositivo, etc.), la app vuelve a esta fecha real en vez de "adivinar"
@@ -892,6 +1073,48 @@ function getWeekNumber(date) {
   return Math.max(0, diff);
 }
 
+if (selectedWeekNum == null) selectedWeekNum = getWeekNumber(currentDate);
+
+function getWeekStartDate(weekNum) {
+  const d = new Date(programStartDate);
+  d.setDate(d.getDate() + weekNum * 7);
+  return d;
+}
+
+function isDayFullyDone(date) {
+  const plan = getDayPlan(date);
+  if (!plan) return false;
+  const key = dateKey(date.getFullYear(), date.getMonth(), date.getDate());
+  const c = (savedData[key] || {}).completions || {};
+  let needed = 0, done = 0;
+  if (plan.surf) { needed++; if (c.surf) done++; }
+  if (plan.type === 'gym') { needed++; if (c.gym) done++; }
+  else if (plan.type === 'trail') { needed++; if (c.trail) done++; }
+  else if (plan.type === 'mob') { needed++; if (c.mob) done++; }
+  else if (plan.type === 'rest') { needed++; if (c.rest) done++; }
+  return needed > 0 && done >= needed;
+}
+
+function isWeekComplete(weekNum) {
+  const start = getWeekStartDate(weekNum);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const plan = getDayPlan(d);
+    if (!plan) continue;
+    if (!isDayFullyDone(d)) return false;
+  }
+  return true;
+}
+
+function selectWeek(weekNum) {
+  selectedWeekNum = weekNum;
+  const start = getWeekStartDate(weekNum);
+  viewYear = start.getFullYear();
+  viewMonth = start.getMonth();
+  renderCalendar();
+}
+
 function getDayPlan(date) {
   const dow = date.getDay(); // 0=Sun, 1=Mon...
   return WEEK_PLAN[dow] || null;
@@ -1011,11 +1234,126 @@ function getTrailSession(dow, weekNum) {
 }
 
 // ===== RENDER CALENDAR =====
+function renderPlanHero() {
+  const el = document.getElementById('planHero');
+  if (!el) return;
+  const week = selectedWeekNum;
+  const block = getBlock(week);
+  const blockLabel = getBlockLabel(week);
+  const weekInBlock = (week % 4) + 1;
+  const pct = Math.round((weekInBlock / 4) * 100);
+
+  let surfCount = 0, gymCount = 0, trailCount = 0;
+  const start = getWeekStartDate(week);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    const c = (savedData[key] || {}).completions || {};
+    if (c.surf) surfCount++;
+    if (c.gym) gymCount++;
+    if (c.trail) trailCount++;
+  }
+
+  el.innerHTML = `
+    <div class="plan-kicker">Surf · Gym · Trail</div>
+    <div class="plan-title">Bloque ${block + 1} — ${blockLabel}</div>
+    <div class="plan-stats">
+      <div class="plan-stat"><div class="plan-stat-val" style="color:var(--surf)">${surfCount}</div><div class="plan-stat-label">Surf</div></div>
+      <div class="plan-stat"><div class="plan-stat-val" style="color:var(--gym-dark)">${gymCount}</div><div class="plan-stat-label">Gym</div></div>
+      <div class="plan-stat"><div class="plan-stat-val" style="color:var(--trail)">${trailCount}</div><div class="plan-stat-label">Trail</div></div>
+    </div>
+    <div class="plan-progress-row">
+      <span class="plan-progress-label">Progreso del bloque</span>
+      <span class="plan-progress-val">${weekInBlock}/4 semanas</span>
+    </div>
+    <div class="plan-bar"><span style="width:${pct}%"></span></div>
+  `;
+}
+
+function renderWeekStrip() {
+  const strip = document.getElementById('weekStrip');
+  if (!strip) return;
+  const current = getWeekNumber(currentDate);
+  const blockStart = Math.floor(selectedWeekNum / 4) * 4;
+  // Show 8 weeks around the selected block for navigation
+  const from = Math.max(0, blockStart);
+  const to = from + 7;
+  let html = '';
+  for (let w = from; w <= to; w++) {
+    const done = isWeekComplete(w);
+    const active = w === selectedWeekNum;
+    const label = done && !active ? '✓' : `W${w + 1}`;
+    html += `<button type="button" class="week-chip${active ? ' active' : ''}${done ? ' done' : ''}" onclick="selectWeek(${w})">${label}</button>`;
+  }
+  strip.innerHTML = html;
+  // Keep active chip in view
+  const activeEl = strip.querySelector('.week-chip.active');
+  if (activeEl) activeEl.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+}
+
+function renderActivityList() {
+  const list = document.getElementById('activityList');
+  const rangeEl = document.getElementById('weekRangeLabel');
+  if (!list) return;
+  const start = getWeekStartDate(selectedWeekNum);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  if (rangeEl) {
+    rangeEl.textContent = `${start.getDate()} ${MONTHS_ES[start.getMonth()].slice(0,3)} – ${end.getDate()} ${MONTHS_ES[end.getMonth()].slice(0,3)}`;
+  }
+
+  let html = '';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const plan = getDayPlan(d);
+    if (!plan) continue;
+    const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    const c = (savedData[key] || {}).completions || {};
+    const isToday = d.toDateString() === currentDate.toDateString();
+    const fullyDone = isDayFullyDone(d);
+
+    let type = plan.type;
+    let name = plan.label || plan.type;
+    let accent = plan.type;
+    if (plan.type === 'gym') { name = `Gym — ${plan.label}`; accent = 'gym'; }
+    else if (plan.type === 'trail') { name = plan.label; accent = 'trail'; }
+    else if (plan.type === 'rest') { name = 'Descanso activo'; accent = 'rest'; }
+    else if (plan.type === 'mob') { name = 'Movilidad'; accent = 'mob'; }
+
+    const metaParts = [];
+    if (plan.surf) metaParts.push(c.surf ? 'Surf ✓' : 'Surf');
+    if (plan.type === 'gym') metaParts.push(c.gym ? 'Gym ✓' : 'Gym');
+    if (plan.type === 'trail') metaParts.push(c.trail ? 'Trail ✓' : 'Trail');
+    if (plan.type === 'mob') metaParts.push(c.mob ? 'Hecho ✓' : 'Pendiente');
+    if (plan.type === 'rest') metaParts.push(c.rest ? 'Hecho ✓' : 'Pendiente');
+
+    const dateLabel = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+    const y = d.getFullYear(), m = d.getMonth(), day = d.getDate();
+    html += `
+      <div class="activity-card${isToday ? ' today' : ''}${fullyDone ? ' done' : ''}" onclick="openSheet(new Date(${y},${m},${day}))">
+        <div class="activity-accent ${accent}"></div>
+        <div class="activity-main">
+          <div class="activity-type">${DAYS_ES[d.getDay()]}</div>
+          <div class="activity-name">${name}</div>
+          <div class="activity-meta">${metaParts.join(' · ')}</div>
+        </div>
+        <div class="activity-side">
+          <div class="activity-date">${dateLabel}</div>
+          <div class="activity-check${fullyDone ? ' on' : ''}">${fullyDone ? '✓' : ''}</div>
+        </div>
+      </div>`;
+  }
+  list.innerHTML = html || `<div style="color:var(--muted);font-size:13px;padding:8px 0">Sin actividades esta semana</div>`;
+}
+
 function renderCalendar() {
   const label = document.getElementById('monthLabel');
-  label.textContent = `${MONTHS_ES[viewMonth]} ${viewYear}`;
+  if (label) label.textContent = `${MONTHS_ES[viewMonth]} ${viewYear}`;
 
   const cal = document.getElementById('calendar');
+  if (!cal) return;
   cal.innerHTML = '';
 
   const firstDay = new Date(viewYear, viewMonth, 1).getDay();
@@ -1066,11 +1404,15 @@ function renderCalendar() {
     cal.appendChild(div);
   }
 
+  renderPlanHero();
+  renderWeekStrip();
+  renderActivityList();
   renderWeekSummary();
 }
 
 function renderWeekSummary() {
   const summary = document.getElementById('weekSummary');
+  if (!summary) return;
   // Count sessions this month
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   let gymCount = 0, trailCount = 0, surfCount = 0;
@@ -1091,7 +1433,7 @@ function renderWeekSummary() {
         <div class="week-card-label">Surf</div>
       </div>
       <div class="week-card">
-        <div class="week-card-val" style="color:var(--gym)">${gymCount}</div>
+        <div class="week-card-val" style="color:var(--gym-dark)">${gymCount}</div>
         <div class="week-card-label">Gym</div>
       </div>
       <div class="week-card">
@@ -1106,6 +1448,8 @@ function renderWeekSummary() {
 function openSheet(date) {
   const plan = getDayPlan(date);
   if (!plan) return;
+
+  selectedWeekNum = getWeekNumber(date);
 
   const key = dateKey(date.getFullYear(), date.getMonth(), date.getDate());
   const saved = savedData[key] || {};
@@ -2228,7 +2572,7 @@ function saveNote(key) {
 
 function showSavedToast(msg) {
   const toast = document.createElement('div');
-  toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:white;padding:10px 20px;border-radius:20px;font-size:14px;z-index:999;';
+  toast.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#8B7CFF,#5B8CFF);color:white;padding:12px 22px;border-radius:999px;font-size:14px;font-weight:600;z-index:999;box-shadow:0 10px 28px rgba(139,124,255,0.35);';
   toast.textContent = msg || '✓ Guardado';
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 2000);
@@ -2251,6 +2595,7 @@ function setProgramStart(val) {
   if (!val) return;
   localStorage.setItem('esteban_program_start', val);
   programStartDate = new Date(val + 'T12:00:00');
+  selectedWeekNum = getWeekNumber(currentDate);
   renderCalendar();
   showSavedToast('Fecha de inicio actualizada');
 }
