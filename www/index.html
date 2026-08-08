@@ -112,8 +112,11 @@
   .week-strip-wrap { padding: 0 16px 6px; }
   .week-strip-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
   .week-strip {
-    display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px;
+    display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden;
+    padding: 4px 16px 8px; margin: 0 -16px;
     -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    touch-action: pan-x; overscroll-behavior-x: contain;
+    scroll-padding-inline: 16px;
   }
   .week-strip::-webkit-scrollbar { display: none; }
   .week-chip {
@@ -122,6 +125,7 @@
     color: var(--muted); font-size: 12px; font-weight: 700;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     transition: transform 0.15s, border-color 0.15s, background 0.15s, color 0.15s;
+    touch-action: manipulation; -webkit-user-select: none; user-select: none;
   }
   .week-chip.done { background: rgba(45,212,168,0.12); border-color: rgba(45,212,168,0.35); color: var(--surf); }
   .week-chip.active {
@@ -938,6 +942,8 @@ let currentDate = new Date();
 let viewYear = currentDate.getFullYear();
 let viewMonth = currentDate.getMonth();
 let selectedWeekNum = null; // filled after programStartDate loads
+let weekStripScrollLeft = 0;
+let weekStripShouldCenter = true; // center active chip only on explicit week change / first load
 
 // Respaldo fijo en el código: si el teléfono perdiera el valor guardado (borrado manual,
 // restablecer el dispositivo, etc.), la app vuelve a esta fecha real en vez de "adivinar"
@@ -1109,6 +1115,7 @@ function isWeekComplete(weekNum) {
 
 function selectWeek(weekNum) {
   selectedWeekNum = weekNum;
+  weekStripShouldCenter = true;
   const start = getWeekStartDate(weekNum);
   viewYear = start.getFullYear();
   viewMonth = start.getMonth();
@@ -1274,22 +1281,28 @@ function renderPlanHero() {
 function renderWeekStrip() {
   const strip = document.getElementById('weekStrip');
   if (!strip) return;
-  const current = getWeekNumber(currentDate);
-  const blockStart = Math.floor(selectedWeekNum / 4) * 4;
-  // Show 8 weeks around the selected block for navigation
-  const from = Math.max(0, blockStart);
-  const to = from + 7;
+
+  // Preserve manual scroll position — re-renders (save, complete, etc.) must not reset it.
+  if (strip.scrollWidth > strip.clientWidth) weekStripScrollLeft = strip.scrollLeft;
+
+  const currentWeek = getWeekNumber(currentDate);
+  const maxWeek = Math.max(currentWeek + 2, selectedWeekNum + 1, 11);
   let html = '';
-  for (let w = from; w <= to; w++) {
+  for (let w = 0; w <= maxWeek; w++) {
     const done = isWeekComplete(w);
     const active = w === selectedWeekNum;
     const label = done && !active ? '✓' : `W${w + 1}`;
     html += `<button type="button" class="week-chip${active ? ' active' : ''}${done ? ' done' : ''}" onclick="selectWeek(${w})">${label}</button>`;
   }
   strip.innerHTML = html;
-  // Keep active chip in view
-  const activeEl = strip.querySelector('.week-chip.active');
-  if (activeEl) activeEl.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+
+  if (weekStripShouldCenter) {
+    const activeEl = strip.querySelector('.week-chip.active');
+    if (activeEl) activeEl.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'auto' });
+    weekStripShouldCenter = false;
+  } else {
+    strip.scrollLeft = Math.min(weekStripScrollLeft, strip.scrollWidth - strip.clientWidth);
+  }
 }
 
 function renderActivityList() {
@@ -2596,6 +2609,7 @@ function setProgramStart(val) {
   localStorage.setItem('esteban_program_start', val);
   programStartDate = new Date(val + 'T12:00:00');
   selectedWeekNum = getWeekNumber(currentDate);
+  weekStripShouldCenter = true;
   renderCalendar();
   showSavedToast('Fecha de inicio actualizada');
 }
