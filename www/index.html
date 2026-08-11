@@ -415,6 +415,56 @@
   .notif-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
   .notif-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text); }
   .notif-status { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+
+  /* ADJUSTMENT BANNERS */
+  .adjust-banner {
+    border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 12px;
+    font-size: 13px; line-height: 1.45; border: 1px solid transparent;
+  }
+  .adjust-banner.reduce { background: rgba(240,163,94,0.14); border-color: rgba(240,163,94,0.35); color: var(--trail-dark); }
+  .adjust-banner.increase { background: rgba(45,212,168,0.12); border-color: rgba(45,212,168,0.35); color: var(--surf-dark); }
+  .adjust-banner.deload { background: rgba(91,140,255,0.14); border-color: rgba(91,140,255,0.35); color: #A8C4FF; }
+  .adjust-banner.repeat { background: rgba(255,255,255,0.06); border-color: var(--border); color: var(--muted); }
+
+  /* EVALUATION SCREEN */
+  .eval-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: rgba(0,0,0,0.72); backdrop-filter: blur(8px);
+    display: none; align-items: flex-end; justify-content: center;
+    padding: 0 0 calc(env(safe-area-inset-bottom));
+  }
+  .eval-overlay.open { display: flex; }
+  .eval-panel {
+    width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 24px 24px 0 0; padding: 20px 18px 24px;
+    animation: riseIn 0.35s ease both;
+  }
+  .eval-kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gym-dark); margin-bottom: 6px; }
+  .eval-title { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 4px; }
+  .eval-date { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+  .eval-question { margin-bottom: 18px; }
+  .eval-q-label { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+  .eval-options { display: flex; flex-direction: column; gap: 8px; }
+  .eval-opt {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    border: 1px solid var(--border); background: var(--bg-elev);
+    border-radius: var(--radius-sm); padding: 12px 14px;
+    font-size: 14px; color: var(--text); cursor: pointer; text-align: left;
+  }
+  .eval-opt.selected { border-color: rgba(139,124,255,0.55); background: rgba(139,124,255,0.12); }
+  .eval-opt:active { transform: scale(0.99); }
+  .eval-save {
+    width: 100%; margin-top: 8px; border: none; border-radius: var(--radius-sm);
+    padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer;
+    background: var(--grad); color: white;
+  }
+  .eval-save:disabled { opacity: 0.45; cursor: not-allowed; }
+  .eval-close {
+    position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 16px;
+    width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border);
+    background: rgba(0,0,0,0.35); color: var(--text); font-size: 20px; cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -438,9 +488,9 @@
     <div class="notif-status" id="notifStatus">Sin permiso</div>
     <button class="data-btn" style="width:100%;margin-bottom:8px" onclick="requestNotificationPermission()">Activar notificaciones</button>
     <div class="notif-row">
-      <label class="notif-toggle"><input type="checkbox" id="dailyReminder" onchange="saveNotifSettings()"> Recordatorio matutino</label>
-      <input type="time" id="dailyReminderTime" value="06:30" onchange="saveNotifSettings()">
+      <label class="notif-toggle"><input type="checkbox" id="dailyReminder" onchange="saveNotifSettings()"> Evaluación diaria (21:00)</label>
     </div>
+    <button class="data-btn" style="width:100%;margin-bottom:8px" onclick="openEvaluation(new Date())">Evaluar hoy ahora</button>
     <div class="notif-row">
       <label class="notif-toggle"><input type="checkbox" id="timerNotif" checked onchange="saveNotifSettings()"> Aviso al terminar descanso</label>
     </div>
@@ -519,6 +569,11 @@
 </div>
 
 <div class="week-summary" id="weekSummary"></div>
+
+<div class="eval-overlay" id="evalOverlay" onclick="if(event.target===this)closeEvaluation()">
+  <button class="eval-close" type="button" aria-label="Cerrar evaluación" onclick="closeEvaluation()">×</button>
+  <div class="eval-panel" id="evalPanel"></div>
+</div>
 
 <div class="overlay" id="overlay" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet">
@@ -702,7 +757,7 @@ function resetSeries(key, trackId, total, restSec, exName) {
 }
 
 // Suggest weight based on last 4 weeks of logged weights (chronological)
-function suggestWeight(exKey) {
+function suggestWeight(exKey, extraKg = 0) {
   if (!exKey) return null;
   const today = new Date();
   const entries = [];
@@ -721,11 +776,11 @@ function suggestWeight(exKey) {
   }
   // Backward compat: old logs used generic 'olympic' key
   if (entries.length === 0 && ['pushjerk','snatch','cleanjerk'].includes(exKey)) {
-    return suggestWeight('olympic');
+    return suggestWeight('olympic', extraKg);
   }
   // Backward compat: old logs used shared 'military' key before splitting into military_db/military_bar
   if (entries.length === 0 && ['military_db','military_bar'].includes(exKey)) {
-    return suggestWeight('military');
+    return suggestWeight('military', extraKg);
   }
   if (entries.length === 0) return null;
   entries.sort((a, b) => a.date - b.date);
@@ -734,9 +789,9 @@ function suggestWeight(exKey) {
   if (values.length >= 3) {
     const last3 = values.slice(-3);
     const stagnated = last3.every(v => v === last3[0]);
-    if (stagnated) return { kg: last, stagnated: true };
+    if (stagnated) return { kg: last + extraKg, stagnated: true };
   }
-  return { kg: last + 2.5, stagnated: false };
+  return { kg: last + 2.5 + extraKg, stagnated: false };
 }
 
 // Detect stagnation for lifts trained on a given gym day
@@ -1241,6 +1296,419 @@ function getTrailSession(dow, weekNum) {
   return null;
 }
 
+// ===== INTELLIGENCE ENGINE — evaluaciones + ajustes automáticos =====
+const EVAL_REMINDER_HOUR = 21;
+const EVAL_REMINDER_MIN = 0;
+
+function getSessionType(date, plan) {
+  if (!plan) return null;
+  const dow = date.getDay();
+  if (plan.type === 'gym') {
+    if (dow === 1) return 'gym_push';
+    if (dow === 3) return 'gym_legs';
+    if (dow === 5) return 'gym_pull';
+  }
+  if (plan.type === 'trail') {
+    if (dow === 2) return 'trail_tue';
+    if (dow === 6) return 'trail_sat';
+  }
+  return null;
+}
+
+function calcEvaluationScore(energy, completed, effort) {
+  return Math.round(((energy + completed + effort) / 3) * 10) / 10;
+}
+
+function reducePrescriptionSets(prescription, n = 1) {
+  if (!prescription) return prescription;
+  const m = String(prescription).match(/^(\d+)\s*([×x])/i);
+  if (!m) return prescription;
+  const sets = Math.max(1, parseInt(m[1], 10) - n);
+  return prescription.replace(/^(\d+)/, String(sets));
+}
+
+function getEvaluationsInWindow(daysBack) {
+  const out = [];
+  const today = new Date();
+  for (let i = 0; i <= daysBack; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    const ev = savedData[key]?.evaluation;
+    if (!ev) continue;
+    const plan = getDayPlan(d);
+    out.push({
+      date: new Date(d),
+      key,
+      weekNum: getWeekNumber(d),
+      sessionType: getSessionType(d, plan),
+      ...ev,
+    });
+  }
+  return out.sort((a, b) => a.date - b.date);
+}
+
+function getSessionEvaluations(sessionType, beforeDate, limit = 20) {
+  const out = [];
+  const start = beforeDate ? new Date(beforeDate) : new Date();
+  for (let i = 1; i <= 120; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() - i);
+    const plan = getDayPlan(d);
+    if (getSessionType(d, plan) !== sessionType) continue;
+    const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    const ev = savedData[key]?.evaluation;
+    if (ev) out.unshift({ date: new Date(d), key, weekNum: getWeekNumber(d), sessionType, ...ev });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+function isWeekFatigued(weekNum) {
+  const start = getWeekStartDate(weekNum);
+  let hasEval = false;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const ev = savedData[dateKey(d.getFullYear(), d.getMonth(), d.getDate())]?.evaluation;
+    if (!ev) continue;
+    hasEval = true;
+    if (ev.energy === 1 && ev.completed <= 2) return true;
+  }
+  return false;
+}
+
+function getWeekTrailAvgScore(weekNum) {
+  const start = getWeekStartDate(weekNum);
+  const scores = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const plan = getDayPlan(d);
+    if (plan?.type !== 'trail') continue;
+    const ev = savedData[dateKey(d.getFullYear(), d.getMonth(), d.getDate())]?.evaluation;
+    if (ev?.score != null) scores.push(ev.score);
+  }
+  if (!scores.length) return null;
+  return scores.reduce((a, b) => a + b, 0) / scores.length;
+}
+
+function runDecisionEngine(date, plan) {
+  const weekNum = getWeekNumber(date);
+  const sessionType = getSessionType(date, plan);
+  const banners = [];
+  const gym = { strengthSetReduce: 0, extraWeightKg: 0, forceDeload: false };
+  const trail = { repeatFromWeekNum: null, distanceMultiplier: 1, zoneOffset: 0, advanceDesnivel: false, forceDeload: false };
+
+  if (!sessionType) {
+    if (weekNum % 4 === 3 && (plan?.type === 'gym' || plan?.type === 'trail')) {
+      gym.strengthSetReduce = Math.max(gym.strengthSetReduce, 1);
+      trail.forceDeload = true;
+      banners.push({
+        priority: 10,
+        type: 'deload',
+        message: 'Semana de deload. El cuerpo necesita consolidar antes del próximo bloque.',
+      });
+    }
+    return { banners, gym, trail };
+  }
+
+  const prevEvals = getSessionEvaluations(sessionType, date, 10);
+  const prevEval = prevEvals.length ? prevEvals[prevEvals.length - 1] : null;
+
+  // P1 — Deload anticipado
+  if (isWeekFatigued(weekNum - 1) && isWeekFatigued(weekNum - 2)) {
+    gym.forceDeload = true;
+    gym.strengthSetReduce = Math.max(gym.strengthSetReduce, 1);
+    trail.forceDeload = true;
+    banners.push({
+      priority: 1,
+      type: 'deload',
+      message: 'Llevás dos semanas con energía baja y sesiones incompletas. Esta semana bajamos el volumen para que el cuerpo consolide.',
+    });
+  }
+
+  // P2 — Reducir carga puntual
+  if (prevEval && prevEval.effort === 1 && prevEval.energy === 1 && plan.type === 'gym') {
+    gym.strengthSetReduce = Math.max(gym.strengthSetReduce, 1);
+    banners.push({
+      priority: 2,
+      type: 'reduce',
+      message: 'La última sesión fue muy exigente con poca energía. Hoy reducimos una serie para llegar mejor.',
+    });
+  }
+
+  // P3 — Subir carga antes de lo previsto
+  const last3 = prevEvals.slice(-3);
+  if (last3.length === 3 && last3.every(e => e.score >= 2.7) && plan.type === 'gym') {
+    gym.extraWeightKg = 2.5;
+    banners.push({
+      priority: 3,
+      type: 'increase',
+      message: 'Las últimas 3 sesiones fueron muy sólidas. Podés intentar subir un poco más el peso hoy.',
+    });
+  }
+
+  // P4 — Repetir prescripción trail
+  if (plan.type === 'trail' && prevEval && prevEval.completed === 1) {
+    trail.repeatFromWeekNum = prevEval.weekNum;
+    const dayLabel = date.getDay() === 2 ? 'martes' : 'sábado';
+    banners.push({
+      priority: 4,
+      type: 'repeat',
+      message: `La salida del ${dayLabel} no se completó. Repetimos la misma prescripción esta semana.`,
+    });
+  }
+
+  // P5 — Reducir trail
+  if (plan.type === 'trail' && prevEval && prevEval.effort === 1) {
+    if (date.getDay() === 6) trail.distanceMultiplier = 0.8;
+    trail.zoneOffset = -1;
+    banners.push({
+      priority: 5,
+      type: 'reduce',
+      message: 'El trail estuvo muy duro. El sábado bajamos la distancia y la intensidad para recuperar bien.',
+    });
+  }
+
+  // P6 — Avanzar trail antes
+  const wScore = getWeekTrailAvgScore(weekNum - 1);
+  const wScorePrev = getWeekTrailAvgScore(weekNum - 2);
+  if (plan.type === 'trail' && wScore != null && wScorePrev != null && wScore >= 2.7 && wScorePrev >= 2.7) {
+    trail.advanceDesnivel = true;
+    banners.push({
+      priority: 6,
+      type: 'increase',
+      message: 'Los últimos dos trails fueron muy sólidos. Esta semana subimos el desnivel objetivo.',
+    });
+  }
+
+  // Deload automático semana 4 (independiente)
+  if (weekNum % 4 === 3) {
+    gym.strengthSetReduce = Math.max(gym.strengthSetReduce, 1);
+    trail.forceDeload = true;
+    if (!banners.some(b => b.priority === 1)) {
+      banners.push({
+        priority: 10,
+        type: 'deload',
+        message: 'Semana de deload. El cuerpo necesita consolidar antes del próximo bloque.',
+      });
+    }
+  }
+
+  banners.sort((a, b) => a.priority - b.priority);
+  return { banners, gym, trail };
+}
+
+function renderAdjustBanners(banners) {
+  if (!banners?.length) return '';
+  const evalBanner = banners.find(b => b.priority < 10);
+  const deloadBanner = banners.find(b => b.priority === 10);
+  const show = [];
+  if (evalBanner) show.push(evalBanner);
+  if (deloadBanner && evalBanner?.type !== 'deload') show.push(deloadBanner);
+  if (!show.length) show.push(banners[0]);
+  return show.map(b =>
+    `<div class="adjust-banner ${b.type}">${b.message}</div>`
+  ).join('');
+}
+
+function applyGymPrescriptionAdjustments(blocks, gymAdj) {
+  if (!gymAdj?.strengthSetReduce) return blocks;
+  return blocks.map(blk => {
+    if (blk.name !== 'Bloque de Fuerza') return blk;
+    return {
+      ...blk,
+      exercises: blk.exercises.map(ex => ({
+        ...ex,
+        sets: reducePrescriptionSets(ex.sets, gymAdj.strengthSetReduce),
+      })),
+    };
+  });
+}
+
+function getTrailSessionAdjusted(dow, weekNum, trailAdj) {
+  let baseWeek = weekNum;
+  if (trailAdj?.repeatFromWeekNum != null) baseWeek = trailAdj.repeatFromWeekNum;
+
+  let session;
+  if (trailAdj?.forceDeload && getWeekType(weekNum) !== 'deload') {
+    session = getTrailSession(dow, weekNum);
+    if (session) {
+      session = JSON.parse(JSON.stringify(session));
+      if (dow === 2) {
+        session.distanceKm = [4, 5];
+        session.desnivelM = [0, 80];
+        session.desnivelLabel = 'máximo 80 m';
+        session.zones = [{ pct: 100, zone: 2, note: 'todo el recorrido' }];
+        session.durationMin = [25, 35];
+        session.weekType = 'deload';
+      } else if (dow === 6) {
+        session.distanceKm = [6, 8];
+        session.desnivelM = [100, 150];
+        session.zones = [{ pct: 100, zone: 2, note: 'todo el recorrido' }];
+        session.durationMin = [45, 60];
+        session.weekType = 'deload';
+      }
+    }
+  } else {
+    session = getTrailSession(dow, baseWeek);
+    if (session) session = JSON.parse(JSON.stringify(session));
+  }
+
+  if (!session) return null;
+
+  if (trailAdj?.distanceMultiplier && trailAdj.distanceMultiplier < 1 && dow === 6) {
+    session.distanceKm = session.distanceKm.map(km =>
+      Math.max(1, Math.round(km * trailAdj.distanceMultiplier * 10) / 10)
+    );
+  }
+
+  if (trailAdj?.zoneOffset) {
+    session.zones = session.zones.map(z => ({
+      ...z,
+      zone: Math.max(2, z.zone + trailAdj.zoneOffset),
+    }));
+  }
+
+  if (trailAdj?.advanceDesnivel) {
+    const nextBlock = Math.min(2, getBlock(weekNum) + 1);
+    const desnivelArr = dow === 2 ? MARTES_DESNIVEL_BY_BLOCK : SABADO_DESNIVEL_BY_BLOCK;
+    session.desnivelM = [...desnivelArr[nextBlock]];
+    delete session.desnivelLabel;
+  }
+
+  return session;
+}
+
+// ===== EVALUATION UI =====
+let evalTargetDate = null;
+let evalDraft = { energy: null, completed: null, effort: null };
+
+const EVAL_QUESTIONS = [
+  {
+    key: 'energy',
+    label: '¿Cómo llegaste de energía?',
+    options: [
+      { val: 1, label: '🔴 Bajo' },
+      { val: 2, label: '🟡 Normal' },
+      { val: 3, label: '🟢 Alto' },
+    ],
+  },
+  {
+    key: 'completed',
+    label: '¿Completaste todo el programa?',
+    options: [
+      { val: 3, label: '✅ Sí completo' },
+      { val: 2, label: '〰️ Parcial' },
+      { val: 1, label: '❌ No pude' },
+    ],
+  },
+  {
+    key: 'effort',
+    label: '¿Cómo se sintió el esfuerzo?',
+    options: [
+      { val: 3, label: '😴 Muy fácil' },
+      { val: 2, label: '👌 Justo' },
+      { val: 1, label: '🔥 Muy duro' },
+    ],
+  },
+];
+
+function openEvaluation(date) {
+  evalTargetDate = date || new Date();
+  const key = dateKey(evalTargetDate.getFullYear(), evalTargetDate.getMonth(), evalTargetDate.getDate());
+  const saved = savedData[key]?.evaluation;
+  evalDraft = {
+    energy: saved?.energy ?? null,
+    completed: saved?.completed ?? null,
+    effort: saved?.effort ?? null,
+  };
+
+  const panel = document.getElementById('evalPanel');
+  panel.innerHTML = `
+    <div class="eval-kicker">Evaluación del día</div>
+    <div class="eval-title">¿Cómo estuvo el día?</div>
+    <div class="eval-date">${DAYS_ES[evalTargetDate.getDay()]} ${evalTargetDate.getDate()} de ${MONTHS_ES[evalTargetDate.getMonth()]}</div>
+    ${EVAL_QUESTIONS.map(q => `
+      <div class="eval-question" data-q="${q.key}">
+        <div class="eval-q-label">${q.label}</div>
+        <div class="eval-options">
+          ${q.options.map(o => `
+            <button type="button" class="eval-opt${evalDraft[q.key] === o.val ? ' selected' : ''}"
+              onclick="selectEvalOption('${q.key}', ${o.val})">${o.label}</button>
+          `).join('')}
+        </div>
+      </div>
+    `).join('')}
+    <button type="button" class="eval-save" id="evalSaveBtn" onclick="saveEvaluation()" ${isEvalComplete() ? '' : 'disabled'}>Guardar evaluación</button>
+  `;
+
+  document.getElementById('evalOverlay').classList.add('open');
+}
+
+function isEvalComplete() {
+  return evalDraft.energy != null && evalDraft.completed != null && evalDraft.effort != null;
+}
+
+function selectEvalOption(key, val) {
+  evalDraft[key] = val;
+  document.querySelectorAll(`.eval-question[data-q="${key}"] .eval-opt`).forEach((btn, i) => {
+    const q = EVAL_QUESTIONS.find(x => x.key === key);
+    btn.classList.toggle('selected', q.options[i].val === val);
+  });
+  const saveBtn = document.getElementById('evalSaveBtn');
+  if (saveBtn) saveBtn.disabled = !isEvalComplete();
+}
+
+function saveEvaluation() {
+  if (!evalTargetDate || !isEvalComplete()) return;
+  const key = dateKey(evalTargetDate.getFullYear(), evalTargetDate.getMonth(), evalTargetDate.getDate());
+  if (!savedData[key]) savedData[key] = {};
+  const score = calcEvaluationScore(evalDraft.energy, evalDraft.completed, evalDraft.effort);
+  savedData[key].evaluation = {
+    energy: evalDraft.energy,
+    completed: evalDraft.completed,
+    effort: evalDraft.effort,
+    score,
+    timestamp: new Date().toISOString(),
+  };
+  persistTraining(key);
+  closeEvaluation();
+  showSavedToast('Evaluación guardada');
+  maybeAutoSync();
+}
+
+function closeEvaluation() {
+  document.getElementById('evalOverlay').classList.remove('open');
+  evalTargetDate = null;
+}
+
+function shouldPromptEvaluation(date) {
+  const now = new Date();
+  const key = dateKey(date.getFullYear(), date.getMonth(), date.getDate());
+  if (savedData[key]?.evaluation) return false;
+  const afterReminder = now.getHours() > EVAL_REMINDER_HOUR ||
+    (now.getHours() === EVAL_REMINDER_HOUR && now.getMinutes() >= EVAL_REMINDER_MIN);
+  if (dateKey(now.getFullYear(), now.getMonth(), now.getDate()) === key) return afterReminder;
+  return date < now;
+}
+
+function checkPendingEvaluation() {
+  const today = new Date();
+  const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+  if (!savedData[todayKey]?.evaluation && shouldPromptEvaluation(today)) {
+    openEvaluation(today);
+    return;
+  }
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yKey = dateKey(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+  if (!savedData[yKey]?.evaluation && shouldPromptEvaluation(yesterday)) {
+    openEvaluation(yesterday);
+  }
+}
+
 // ===== RENDER CALENDAR =====
 function renderPlanHero() {
   const el = document.getElementById('planHero');
@@ -1467,6 +1935,7 @@ function openSheet(date) {
 
   const key = dateKey(date.getFullYear(), date.getMonth(), date.getDate());
   const saved = savedData[key] || {};
+  const decisions = runDecisionEngine(date, plan);
 
   document.getElementById('sheetDate').textContent = `${DAYS_ES[date.getDay()]} ${date.getDate()} de ${MONTHS_ES[date.getMonth()]} ${date.getFullYear()}`;
 
@@ -1477,7 +1946,13 @@ function openSheet(date) {
   else if (plan.type === 'mob') title = 'Movilidad + Stretching';
   document.getElementById('sheetTitle').textContent = title;
 
-  let body = '';
+  let body = renderAdjustBanners(decisions.banners);
+
+  body += `<div style="margin-bottom:12px">
+    <button type="button" class="data-btn" style="width:100%" onclick="openEvaluation(new Date('${key}T12:00:00'))">
+      ${saved.evaluation ? '✓ Evaluación guardada — editar' : '📝 Evaluar sesión del día'}
+    </button>
+  </div>`;
 
   // SURF block always (except Sunday)
   if (plan.surf) {
@@ -1678,6 +2153,9 @@ function openSheet(date) {
       ];
     }
 
+    dynamicBlocks = applyGymPrescriptionAdjustments(dynamicBlocks, decisions.gym);
+    const weightBonus = decisions.gym.extraWeightKg || 0;
+
     // Rest time per block type
     const REST_TIMES = {
       'Entrada en calor':  null,
@@ -1706,7 +2184,7 @@ function openSheet(date) {
         const tagLabel = ex.tag === 'surf' ? '🏄 ' : ex.tag === 'trail' ? '🏃 ' : '';
         let weightHint = '';
         if (ex.key) {
-          const sug = suggestWeight(ex.key);
+          const sug = suggestWeight(ex.key, weightBonus);
           if (sug) {
             const color = sug.stagnated ? '#BA7517' : 'var(--surf-dark)';
             const bg = sug.stagnated ? '#FAEEDA' : 'var(--surf-light)';
@@ -1772,7 +2250,7 @@ function openSheet(date) {
         currentBlock = ex.block;
         body += `<div class="log-label" style="margin-top:${currentBlock === logExercises[0].block ? '0' : '12px'}">${currentBlock}</div>`;
       }
-      const sug = suggestWeight(ex.key);
+      const sug = suggestWeight(ex.key, weightBonus);
       const phText = sug ? (sug.stagnated ? '⚠ estancado' : `sug: ${sug.kg} kg`) : 'kg';
       body += `<div class="log-row">
         <div style="font-size:13px;flex:1;color:var(--muted)">${ex.label}</div>
@@ -1791,7 +2269,7 @@ function openSheet(date) {
     const trail = getTrailForDate(date);
     const weekNum0 = getWeekNumber(date);
     const weekNum = weekNum0 + 1;
-    const session = getTrailSession(date.getDay(), weekNum0);
+    const session = getTrailSessionAdjusted(date.getDay(), weekNum0, decisions.trail);
 
     body += `<div class="session-block trail">
       <div class="session-block-title">🏃 Trail — Semana ${weekNum}</div>`;
@@ -2099,9 +2577,12 @@ function resumeRestTimerIfNeeded() {
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && restEndAt) {
-    tickRestTimer();
-    acquireWakeLock();
+  if (document.visibilityState === 'visible') {
+    if (restEndAt) {
+      tickRestTimer();
+      acquireWakeLock();
+    }
+    checkPendingEvaluation();
   }
 });
 window.addEventListener('pageshow', () => {
@@ -2174,8 +2655,8 @@ function getNotifSettings() {
 
 function saveNotifSettings() {
   const settings = {
-    dailyReminder: document.getElementById('dailyReminder')?.checked || false,
-    dailyReminderTime: document.getElementById('dailyReminderTime')?.value || '06:30',
+    dailyReminder: document.getElementById('dailyReminder')?.checked !== false,
+    dailyReminderTime: '21:00',
     timerNotif: document.getElementById('timerNotif')?.checked !== false,
   };
   localStorage.setItem('esteban_notifications', JSON.stringify(settings));
@@ -2202,21 +2683,23 @@ async function requestNotificationPermission() {
   const perm = await Notification.requestPermission();
   updateNotifStatus();
   if (perm === 'granted') {
+    const daily = document.getElementById('dailyReminder');
+    if (daily) daily.checked = true;
     saveNotifSettings();
-    showNotification('🏄 Entreno listo', 'Notificaciones activadas. Te avisamos al terminar el descanso.');
-    scheduleDailyReminder();
+    showNotification('📝 Evaluación diaria', 'Te recordaremos a las 21:00 para evaluar tu sesión.', { tag: 'setup' });
   }
 }
 
-async function showNotification(title, body) {
+async function showNotification(title, body, data) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const opts = {
     body,
     icon: 'icons/icon-192.png',
     badge: 'icons/icon-192.png',
     vibrate: [200, 100, 200],
-    tag: 'esteban-training',
+    tag: data?.tag || 'esteban-training',
     renotify: true,
+    data: data || {},
   };
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     try {
@@ -2228,50 +2711,87 @@ async function showNotification(title, body) {
   new Notification(title, opts);
 }
 
-function getTodayReminderText() {
-  const plan = getDayPlan(new Date());
-  if (!plan) return 'Revisá tu plan de entrenamiento de hoy.';
-  const parts = [];
-  if (plan.surf) parts.push('Surf mañana');
-  if (plan.type === 'gym') parts.push(`Gym: ${plan.label}`);
-  if (plan.type === 'trail') parts.push(`Trail: ${plan.label}`);
-  if (plan.type === 'mob') parts.push('Movilidad');
-  if (plan.type === 'rest') parts.push('Descanso activo');
-  return parts.join(' · ') || 'Entrenamiento de hoy';
+function getEvaluationReminderText() {
+  return '¿Cómo estuvo el día? 3 preguntas rápidas.';
 }
 
 function scheduleDailyReminder() {
   if (dailyReminderTimeout) clearTimeout(dailyReminderTimeout);
-  if (!('Notification' in window)) return;
   const settings = getNotifSettings();
-  if (!settings.dailyReminder || Notification.permission !== 'granted') return;
-  const [h, m] = (settings.dailyReminderTime || '06:30').split(':').map(Number);
+  const enabled = settings.dailyReminder !== false;
+
+  if (isNativeApp()) {
+    if (enabled) scheduleNativeEvalCheck();
+    return;
+  }
+
+  if (!('Notification' in window)) return;
+  if (!enabled || Notification.permission !== 'granted') return;
+  const h = EVAL_REMINDER_HOUR;
+  const m = EVAL_REMINDER_MIN;
   const now = new Date();
   const next = new Date(now);
   next.setHours(h, m, 0, 0);
   if (next <= now) next.setDate(next.getDate() + 1);
+  const stamp = dateKey(next.getFullYear(), next.getMonth(), next.getDate());
   dailyReminderTimeout = setTimeout(() => {
-    showNotification('🏄 Buen día — entreno hoy', getTodayReminderText());
+    showNotification('📝 Evaluación del día', getEvaluationReminderText(), {
+      tag: 'daily-eval',
+      action: 'evaluation',
+      dateKey: stamp,
+    });
     scheduleDailyReminder();
   }, next - now);
 }
 
-function initNotifSettings() {
+let nativeEvalCheckTimeout = null;
+function scheduleNativeEvalCheck() {
+  if (nativeEvalCheckTimeout) clearTimeout(nativeEvalCheckTimeout);
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(EVAL_REMINDER_HOUR, EVAL_REMINDER_MIN, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  nativeEvalCheckTimeout = setTimeout(() => {
+    checkPendingEvaluation();
+    scheduleNativeEvalCheck();
+  }, next - now);
+}
+
+function handleNotificationAction(data) {
+  if (!data) return;
+  if (data.action === 'evaluation') {
+    const d = data.dateKey ? new Date(data.dateKey + 'T12:00:00') : new Date();
+    openEvaluation(d);
+  }
+}
+
+async function requestNotificationPermissionOnFirstOpen() {
+  if (localStorage.getItem('esteban_notif_asked')) return;
+  localStorage.setItem('esteban_notif_asked', '1');
   if (isNativeApp()) {
-    // El API de Notification no existe dentro del WebView nativo — se
-    // reemplaza por notificaciones nativas reales en una próxima fase.
-    const section = document.getElementById('notifSection');
-    if (section) section.style.display = 'none';
+    const daily = document.getElementById('dailyReminder');
+    if (daily) daily.checked = true;
+    saveNotifSettings();
+    scheduleNativeEvalCheck();
     return;
   }
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'default') return;
+  setTimeout(() => requestNotificationPermission(), 1200);
+}
+
+function initNotifSettings() {
   const settings = getNotifSettings();
   const daily = document.getElementById('dailyReminder');
-  const time = document.getElementById('dailyReminderTime');
   const timer = document.getElementById('timerNotif');
-  if (daily) daily.checked = !!settings.dailyReminder;
-  if (time) time.value = settings.dailyReminderTime || '06:30';
+  if (daily) daily.checked = settings.dailyReminder !== false;
   if (timer) timer.checked = settings.timerNotif !== false;
-  updateNotifStatus();
+  if (isNativeApp()) {
+    const status = document.getElementById('notifStatus');
+    if (status) status.textContent = '📱 Evaluación automática al abrir la app después de las 21:00';
+  } else {
+    updateNotifStatus();
+  }
   scheduleDailyReminder();
 }
 
@@ -3073,9 +3593,11 @@ function handleImport(event) {
   reader.readAsText(file);
 }
 
-// Close sheet with Escape key
+// Close sheet / evaluation with Escape key
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeSheet();
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('evalOverlay')?.classList.contains('open')) closeEvaluation();
+  else closeSheet();
 });
 
 // ===== PWA =====
@@ -3126,6 +3648,7 @@ function initPWA() {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
     navigator.serviceWorker.addEventListener('message', (e) => {
       if (e.data?.type === 'restDone' && restEndAt) finishRestTimer();
+      if (e.data?.type === 'notificationAction') handleNotificationAction(e.data.data);
     });
   }
 }
@@ -3137,7 +3660,16 @@ initCloudSettings();
 initPWA();
 resumeRestTimerIfNeeded();
 renderCalendar();
-initLocalStore();
+initLocalStore().then(() => {
+  requestNotificationPermissionOnFirstOpen();
+  if (location.hash.startsWith('#eval=')) {
+    const dk = location.hash.slice(6);
+    openEvaluation(new Date(dk + 'T12:00:00'));
+    history.replaceState(null, '', location.pathname + location.search);
+  } else {
+    checkPendingEvaluation();
+  }
+});
 </script>
 </body>
 </html>
