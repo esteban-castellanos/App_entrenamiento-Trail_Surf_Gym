@@ -2110,6 +2110,7 @@ window.addEventListener('pageshow', () => {
 function closeSheet() {
   document.getElementById('overlay').classList.remove('open');
   document.getElementById('sheet').classList.remove('open');
+  renderCalendar();
 }
 
 function switchTab(el, tab) {
@@ -2591,10 +2592,28 @@ function showSavedToast(msg) {
   setTimeout(() => toast.remove(), 2000);
 }
 
+function getAnchorWeekForMonth(year, month) {
+  // Week with the most days in this calendar month — keeps highlights aligned with the month being viewed
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const counts = {};
+  for (let d = 1; d <= daysInMonth; d++) {
+    const w = getWeekNumber(new Date(year, month, d));
+    counts[w] = (counts[w] || 0) + 1;
+  }
+  let bestWeek = getWeekNumber(new Date(year, month, 1));
+  let bestCount = 0;
+  for (const [w, c] of Object.entries(counts)) {
+    if (c > bestCount) { bestCount = c; bestWeek = Number(w); }
+  }
+  return bestWeek;
+}
+
 function changeMonth(dir) {
   viewMonth += dir;
   if (viewMonth > 11) { viewMonth = 0; viewYear++; }
   if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+  selectedWeekNum = getAnchorWeekForMonth(viewYear, viewMonth);
+  weekStripShouldCenter = true;
   renderCalendar();
 }
 
