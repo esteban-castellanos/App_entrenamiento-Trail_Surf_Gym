@@ -1,5 +1,10 @@
 {
   "appId": "com.estebancastellanos.entrenamiento",
   "appName": "Entrenamiento",
-  "webDir": "www"
+  "webDir": "www",
+  "plugins": {
+    "LocalNotifications": {
+      "presentationOptions": ["badge", "sound", "banner", "list"]
+    }
+  }
 }

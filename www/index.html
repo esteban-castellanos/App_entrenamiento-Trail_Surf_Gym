@@ -2582,6 +2582,7 @@ document.addEventListener('visibilitychange', () => {
       tickRestTimer();
       acquireWakeLock();
     }
+    if (isNativeApp()) scheduleDailyReminder();
     checkPendingEvaluation();
   }
 });
@@ -2644,6 +2645,120 @@ function saveDay(key, exKeys) {
 
 // ===== NOTIFICATIONS =====
 let dailyReminderTimeout = null;
+const DAILY_EVAL_NOTIF_ID = 1001;
+let nativeNotifListenersReady = false;
+
+function getLocalNotifications() {
+  try {
+    return window.Capacitor?.Plugins?.LocalNotifications || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function initNativeNotifications() {
+  const LN = getLocalNotifications();
+  if (!LN || !isNativeApp() || nativeNotifListenersReady) return;
+  nativeNotifListenersReady = true;
+
+  LN.addListener('localNotificationActionPerformed', (event) => {
+    const extra = event.notification?.extra || {};
+    if (extra.action === 'evaluation') {
+      const d = extra.dateKey ? new Date(extra.dateKey + 'T12:00:00') : new Date();
+      setTimeout(() => openEvaluation(d), 300);
+    }
+  });
+
+  if (window.Capacitor?.Plugins?.App) {
+    window.Capacitor.Plugins.App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) scheduleDailyReminder();
+    });
+  }
+}
+
+async function requestNativeNotificationPermission() {
+  const LN = getLocalNotifications();
+  if (!LN) return false;
+  const result = await LN.requestPermissions();
+  return result.display === 'granted';
+}
+
+async function updateNativeNotifStatus() {
+  const el = document.getElementById('notifStatus');
+  if (!el || !isNativeApp()) return;
+  const LN = getLocalNotifications();
+  if (!LN) {
+    el.textContent = 'Plugin de notificaciones no disponible';
+    return;
+  }
+  try {
+    const perm = await LN.checkPermissions();
+    const labels = {
+      granted: '✅ Push diaria a las 21:00 activa',
+      denied: '❌ Bloqueadas — activá en Ajustes → Notificaciones',
+      prompt: 'Sin permiso — tocá Activar',
+    };
+    el.textContent = labels[perm.display] || labels.prompt;
+  } catch (e) {
+    el.textContent = 'Error al verificar permisos';
+  }
+}
+
+async function scheduleNativeDailyEval() {
+  const LN = getLocalNotifications();
+  if (!LN) return;
+  try {
+    const perm = await LN.checkPermissions();
+    if (perm.display !== 'granted') return;
+
+    await LN.cancel({ notifications: [{ id: DAILY_EVAL_NOTIF_ID }] });
+
+    const notifications = [{
+      id: DAILY_EVAL_NOTIF_ID,
+      title: '📝 Evaluación del día',
+      body: getEvaluationReminderText(),
+      schedule: {
+        on: { hour: EVAL_REMINDER_HOUR, minute: EVAL_REMINDER_MIN },
+        every: 'day',
+        allowWhileIdle: true,
+      },
+      extra: { action: 'evaluation' },
+      autoCancel: true,
+    }];
+
+    // Respaldo: programar los próximos 7 días con fecha exacta por si el repeat falla
+    const now = new Date();
+    for (let i = 0; i < 7; i++) {
+      const at = new Date(now);
+      at.setDate(at.getDate() + i);
+      at.setHours(EVAL_REMINDER_HOUR, EVAL_REMINDER_MIN, 0, 0);
+      if (at <= now) continue;
+      const dk = dateKey(at.getFullYear(), at.getMonth(), at.getDate());
+      notifications.push({
+        id: DAILY_EVAL_NOTIF_ID + 1 + i,
+        title: '📝 Evaluación del día',
+        body: getEvaluationReminderText(),
+        schedule: { at, allowWhileIdle: true },
+        extra: { action: 'evaluation', dateKey: dk },
+        autoCancel: true,
+      });
+    }
+
+    await LN.schedule({ notifications });
+  } catch (e) {
+    console.warn('Native notification schedule failed', e);
+  }
+}
+
+async function cancelNativeDailyEval() {
+  const LN = getLocalNotifications();
+  if (!LN) return;
+  try {
+    const ids = [{ id: DAILY_EVAL_NOTIF_ID }];
+    for (let i = 1; i <= 7; i++) ids.push({ id: DAILY_EVAL_NOTIF_ID + i });
+    await LN.cancel({ notifications: ids });
+  } catch (e) {}
+}
 
 function getNotifSettings() {
   try {
@@ -2667,6 +2782,10 @@ function saveNotifSettings() {
 function updateNotifStatus() {
   const el = document.getElementById('notifStatus');
   if (!el) return;
+  if (isNativeApp()) {
+    updateNativeNotifStatus();
+    return;
+  }
   if (!('Notification' in window)) {
     el.textContent = 'No soportado en este navegador';
     return;
@@ -2676,6 +2795,18 @@ function updateNotifStatus() {
 }
 
 async function requestNotificationPermission() {
+  if (isNativeApp()) {
+    const ok = await requestNativeNotificationPermission();
+    updateNotifStatus();
+    if (ok) {
+      const daily = document.getElementById('dailyReminder');
+      if (daily) daily.checked = true;
+      saveNotifSettings();
+    } else {
+      alert('No se pudieron activar las notificaciones. Revisá Ajustes → Notificaciones → Entrenamiento.');
+    }
+    return;
+  }
   if (!('Notification' in window)) {
     alert('Tu navegador no soporta notificaciones.');
     return;
@@ -2721,7 +2852,13 @@ function scheduleDailyReminder() {
   const enabled = settings.dailyReminder !== false;
 
   if (isNativeApp()) {
-    if (enabled) scheduleNativeEvalCheck();
+    if (enabled) {
+      scheduleNativeDailyEval();
+      scheduleNativeEvalCheck();
+    } else {
+      cancelNativeDailyEval();
+      if (nativeEvalCheckTimeout) clearTimeout(nativeEvalCheckTimeout);
+    }
     return;
   }
 
@@ -2769,10 +2906,20 @@ async function requestNotificationPermissionOnFirstOpen() {
   if (localStorage.getItem('esteban_notif_asked')) return;
   localStorage.setItem('esteban_notif_asked', '1');
   if (isNativeApp()) {
+    await initNativeNotifications();
     const daily = document.getElementById('dailyReminder');
     if (daily) daily.checked = true;
     saveNotifSettings();
-    scheduleNativeEvalCheck();
+    setTimeout(async () => {
+      const LN = getLocalNotifications();
+      if (!LN) return;
+      const perm = await LN.checkPermissions();
+      if (perm.display === 'prompt' || perm.display === 'prompt-with-rationale') {
+        await requestNotificationPermission();
+      } else if (perm.display === 'granted') {
+        scheduleNativeDailyEval();
+      }
+    }, 1200);
     return;
   }
   if (!('Notification' in window)) return;
@@ -2781,17 +2928,13 @@ async function requestNotificationPermissionOnFirstOpen() {
 }
 
 function initNotifSettings() {
+  initNativeNotifications();
   const settings = getNotifSettings();
   const daily = document.getElementById('dailyReminder');
   const timer = document.getElementById('timerNotif');
   if (daily) daily.checked = settings.dailyReminder !== false;
   if (timer) timer.checked = settings.timerNotif !== false;
-  if (isNativeApp()) {
-    const status = document.getElementById('notifStatus');
-    if (status) status.textContent = '📱 Evaluación automática al abrir la app después de las 21:00';
-  } else {
-    updateNotifStatus();
-  }
+  updateNotifStatus();
   scheduleDailyReminder();
 }
 
