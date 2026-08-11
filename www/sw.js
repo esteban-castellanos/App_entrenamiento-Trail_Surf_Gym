@@ -1,10 +1,11 @@
-const CACHE = 'esteban-training-v13';
+const CACHE = 'esteban-training-v14';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './docs/LOGICA-SESIONES-ENTRENAMIENTO.md',
 ];
 
 let restTimeoutId = null;

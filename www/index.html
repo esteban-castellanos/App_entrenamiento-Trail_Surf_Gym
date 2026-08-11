@@ -464,6 +464,7 @@
   </div>
   <div class="data-btns">
     <button class="data-btn" onclick="exportForAI()">Exportar AI</button>
+    <button class="data-btn" onclick="downloadLogicDoc()">Lógica sesiones</button>
     <button class="data-btn" onclick="exportData()">Backup</button>
     <button class="data-btn" onclick="importData()">Importar</button>
   </div>
@@ -2861,6 +2862,20 @@ function exportForAI() {
   setTimeout(() => downloadFile(`entrenamiento-log-${stamp}.md`, md, 'text/markdown'), 400);
   setTimeout(() => downloadFile(`entrenamiento-log-${stamp}.jsonl`, jsonl, 'text/plain'), 800);
   showSavedToast('3 archivos listos para AI');
+}
+
+function downloadLogicDoc() {
+  const stamp = dateKey(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+  fetch('./docs/LOGICA-SESIONES-ENTRENAMIENTO.md')
+    .then(res => {
+      if (!res.ok) throw new Error('not found');
+      return res.text();
+    })
+    .then(text => {
+      downloadFile(`logica-sesiones-entrenamiento-${stamp}.md`, text, 'text/markdown');
+      showSavedToast('Documento de lógica descargado');
+    })
+    .catch(() => alert('No se pudo cargar el documento de lógica. Verificá que estés online o reinstalá la app.'));
 }
 
 // ===== CLOUD SYNC (Fase 2 — Google Apps Script) =====
