@@ -107,6 +107,24 @@
   .plan-progress-val { font-size: 12px; font-weight: 700; color: var(--gym-dark); }
   .plan-bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
   .plan-bar > span { display: block; height: 100%; border-radius: 999px; background: var(--grad); transition: width 0.4s ease; }
+  .plan-objective {
+    margin-top: 14px; padding: 12px 14px; border-radius: 14px;
+    background: rgba(0,0,0,0.22); border: 1px solid rgba(255,255,255,0.06);
+  }
+  .plan-objective-kicker {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--gym-dark); margin-bottom: 6px;
+  }
+  .plan-objective-goal { font-size: 13px; line-height: 1.45; color: var(--text); margin-bottom: 8px; }
+  .plan-objective-row { font-size: 11px; color: var(--muted); line-height: 1.45; margin-top: 4px; }
+  .plan-objective-row strong { color: var(--text); font-weight: 600; }
+  .session-objective {
+    margin-bottom: 12px; padding: 10px 12px; border-radius: var(--radius-sm);
+    background: rgba(0,0,0,0.18); border: 1px solid var(--border); font-size: 12px; line-height: 1.45;
+  }
+  .session-objective-label { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .session-objective-text { color: var(--text); }
+  .session-objective-meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
 
   /* WEEK SELECTOR */
   .week-strip-wrap { padding: 0 16px 6px; }
@@ -618,6 +636,68 @@ function getBlockLabel(weekNum) {
   return labels[getBlock(weekNum)];
 }
 
+const BLOCK_OBJECTIVES = [
+  {
+    seeks: 'Preparar tendones, técnica y capacidad aeróbica. No se busca rendir al máximo todavía — se busca que el cuerpo aguante el plan sin lesionarse.',
+    vsPrevious: 'Primera etapa del ciclo: volumen moderado, olímpico técnico y trail suave para construir la base.',
+    gym: 'Olímpico con barra vacía o % bajo · Fuerza 4×8–10 · Aprender el patrón de cada lift',
+    trail: 'Martes 6–10 km · Sábado desde ~10 km · Desnivel bajo · Casi todo en Z2',
+  },
+  {
+    seeks: 'Hipertrofia funcional: más músculo y más tolerancia al volumen para surf y trail. El peso sube, pero el foco es acumular trabajo de calidad.',
+    vsPrevious: 'Respecto a Adaptación: +1 serie en fuerza, reps un poco más bajas, olímpico ~80%. Trail más largo y con más desnivel intermedio.',
+    gym: 'Fuerza 5×4 / 4×8 · Olímpico al 80% · Más volumen total por sesión',
+    trail: 'Martes 150–250 m desn · Sábado 12–16 km · Más Z3 en subidas',
+  },
+  {
+    seeks: 'Fuerza máxima y transferencia a potencia: menos repeticiones, más peso, trail que exige aguantar terreno duro.',
+    vsPrevious: 'Respecto a Hipertrofia: bajás reps y subís carga (5×3, 4×4). Olímpico 85–90%. Trail con más desnivel y distancias largas.',
+    gym: 'Fuerza 5×3 pesado · Olímpico 85–90% · Menos reps, más intensidad',
+    trail: 'Martes 200–350 m desn · Sábado 16–22+ km · Z3/Z4 en cimas',
+  },
+];
+
+function getBlockObjective(weekNum) {
+  const block = getBlock(weekNum);
+  const weekType = getWeekType(weekNum);
+  const weekInBlock = (weekNum % 4) + 1;
+  const base = BLOCK_OBJECTIVES[block];
+  const deloadNote = weekType === 'deload'
+    ? 'Esta semana consolidamos: menos volumen gym y trail regenerativo.'
+    : null;
+  return {
+    ...base,
+    block,
+    blockLabel: getBlockLabel(weekNum),
+    weekType,
+    weekInBlock,
+    weekLabel: weekType === 'deload'
+      ? `Semana ${weekInBlock}/4 — Deload`
+      : `Semana ${weekInBlock}/4 — Carga`,
+    deloadNote,
+  };
+}
+
+function renderBlockObjectiveHtml(weekNum, compact) {
+  const obj = getBlockObjective(weekNum);
+  if (compact) {
+    return `<div class="session-objective">
+      <div class="session-objective-label">Qué busca ${obj.blockLabel}</div>
+      <div class="session-objective-text">${obj.seeks}</div>
+      <div class="session-objective-meta"><strong>Cambio vs etapa anterior:</strong> ${obj.vsPrevious}</div>
+      ${obj.deloadNote ? `<div class="session-objective-meta">${obj.weekLabel} · ${obj.deloadNote}</div>` : `<div class="session-objective-meta">${obj.weekLabel}</div>`}
+    </div>`;
+  }
+  return `<div class="plan-objective">
+    <div class="plan-objective-kicker">Etapa ${obj.block + 1} — ${obj.blockLabel} · ${obj.weekLabel}</div>
+    <div class="plan-objective-goal">${obj.seeks}</div>
+    <div class="plan-objective-row"><strong>Respecto a la etapa anterior:</strong> ${obj.vsPrevious}</div>
+    <div class="plan-objective-row"><strong>Gym esta etapa:</strong> ${obj.gym}</div>
+    <div class="plan-objective-row"><strong>Trail esta etapa:</strong> ${obj.trail}</div>
+    ${obj.deloadNote ? `<div class="plan-objective-row" style="margin-top:6px;color:var(--accent-2)">${obj.deloadNote}</div>` : ''}
+  </div>`;
+}
+
 // Returns sets x reps string for a given exercise key and week
 function getPrescription(exKey, weekNum) {
   const block = getBlock(weekNum);
@@ -969,29 +1049,7 @@ const WEEK_PLAN = {
   }
 };
 
-// Trail progression by week number (1-indexed from start of program)
-const TRAIL_PROGRESSION = {
-  martes: [
-    { name: 'Uvita - San Josecito', km: 3.69, desnivel: 78, diff: 1, diffLabel: 'Muy fácil', note: 'Semana 1–2: reconectar con el impacto' },
-    { name: 'Uvita - San Josecito', km: 3.69, desnivel: 78, diff: 1, diffLabel: 'Muy fácil', note: 'Semana 1–2: reconectar con el impacto' },
-    { name: 'Costa Ballena Run', km: 9.60, desnivel: 98, diff: 1, diffLabel: 'Fácil', note: 'Semana 3–4: ganar volumen en terreno plano' },
-    { name: 'Costa Ballena Run', km: 9.60, desnivel: 98, diff: 1, diffLabel: 'Fácil', note: 'Semana 3–4: ganar volumen en terreno plano' },
-    { name: 'Uvita (hiking)', km: 6.85, desnivel: 244, diff: 2, diffLabel: 'Moderado', note: 'Semana 5–6: primer desnivel real' },
-    { name: 'Uvita (hiking)', km: 6.85, desnivel: 244, diff: 2, diffLabel: 'Moderado', note: 'Semana 5–6: primer desnivel real' },
-    { name: 'Ojochal - Ventanas', km: 11.60, desnivel: 277, diff: 2, diffLabel: 'Moderado', note: 'Semana 7–8: trail running real' },
-    { name: 'Ojochal - Ventanas', km: 11.60, desnivel: 277, diff: 2, diffLabel: 'Moderado', note: 'Semana 7–8: trail running real' },
-  ],
-  sabado: [
-    { name: 'La Planta', km: 2.67, desnivel: 87, diff: 1, diffLabel: 'Muy fácil', note: 'Semana 1–2: largo suave para empezar' },
-    { name: 'Uvita - San Josecito', km: 3.69, desnivel: 78, diff: 1, diffLabel: 'Muy fácil', note: 'Semana 1–2' },
-    { name: 'Ballena Marine NP / Whale Tail', km: 9.02, desnivel: 269, diff: 2, diffLabel: 'Moderado', note: 'Semana 3–4: primer largo con desnivel' },
-    { name: 'Bahía Ballena Uvita Morete', km: 8.53, desnivel: 270, diff: 2, diffLabel: 'Moderado', note: 'Semana 3–4: alternativa similar' },
-    { name: 'Bahía Ballena / Mud / Union Street', km: 12.07, desnivel: 360, diff: 2, diffLabel: 'Moderado', note: 'Semana 5–6: más volumen' },
-    { name: 'Uvita - Los Laureles - Morete', km: 8.27, desnivel: 508, diff: 3, diffLabel: 'Difícil', note: 'Semana 6: mucho desnivel en poca distancia' },
-    { name: 'Kurá Trail - La Pelota - Rancho Pacífico', km: 11.43, desnivel: 779, diff: 3, diffLabel: 'Difícil', note: 'Semana 7–8: nivel alto' },
-    { name: 'Bejuco Trail - La Pelota - Rancho Pacífico', km: 11.03, desnivel: 837, diff: 3, diffLabel: 'Difícil', note: 'Semana 7–8: nivel alto' },
-  ]
-};
+// Trail Wikiloc legacy removed — prescripción real en getTrailSession()
 
 // ===== STATE =====
 let currentDate = new Date();
@@ -1181,15 +1239,6 @@ function selectWeek(weekNum) {
 function getDayPlan(date) {
   const dow = date.getDay(); // 0=Sun, 1=Mon...
   return WEEK_PLAN[dow] || null;
-}
-
-function getTrailForDate(date) {
-  const dow = date.getDay();
-  const weekNum = getWeekNumber(date);
-  const idx = Math.min(Math.floor(weekNum / 2) * 2 + (weekNum % 2), 7);
-  if (dow === 2) return TRAIL_PROGRESSION.martes[idx];
-  if (dow === 6) return TRAIL_PROGRESSION.sabado[idx];
-  return null;
 }
 
 // ===== TRAIL SESSION ENGINE (zonas de FC) =====
@@ -1744,6 +1793,7 @@ function renderPlanHero() {
       <span class="plan-progress-val">${weekInBlock}/4 semanas</span>
     </div>
     <div class="plan-bar"><span style="width:${pct}%"></span></div>
+    ${renderBlockObjectiveHtml(week, false)}
   `;
 }
 
@@ -2033,6 +2083,8 @@ function openSheet(date) {
       </div>
     </div>`;
 
+    body += renderBlockObjectiveHtml(weekNum, true);
+
     // Stagnation alert
     if (stagnated.length > 0) {
       body += `<div style="background:#FAEEDA;border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;font-size:13px;color:#633806">
@@ -2266,13 +2318,14 @@ function openSheet(date) {
 
   // TRAIL
   if (plan.type === 'trail') {
-    const trail = getTrailForDate(date);
     const weekNum0 = getWeekNumber(date);
     const weekNum = weekNum0 + 1;
     const session = getTrailSessionAdjusted(date.getDay(), weekNum0, decisions.trail);
 
     body += `<div class="session-block trail">
       <div class="session-block-title">🏃 Trail — Semana ${weekNum}</div>`;
+
+    body += renderBlockObjectiveHtml(weekNum0, true);
 
     if (session) {
       const desnivelText = session.desnivelLabel || `${session.desnivelM[0]}–${session.desnivelM[1]} m`;
@@ -2291,19 +2344,6 @@ function openSheet(date) {
         </div>
         <div class="trail-session-focus"><strong>Foco:</strong> ${session.focus}</div>
         <div class="trail-session-rule">⚠️ ${session.hrRule}</div>
-      </div>`;
-    }
-
-    if (trail) {
-      const diffClass = `diff-${trail.diff}`;
-      body += `<div class="trail-card">
-          <div class="trail-name">${trail.name}</div>
-          <div class="trail-stats">
-            <div class="trail-stat"><div class="trail-stat-val">${trail.km} km</div><div class="trail-stat-label">Distancia</div></div>
-            <div class="trail-stat"><div class="trail-stat-val">${trail.desnivel} m</div><div class="trail-stat-label">Desnivel</div></div>
-          </div>
-          <div class="trail-diff ${diffClass}">${trail.diffLabel}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:8px">${trail.note}</div>
       </div>`;
     }
 
@@ -3369,14 +3409,18 @@ function buildAISessions() {
       };
     }
     if (comp.trail || dayData.gps || dayData.time || (dayData.note && plan?.type === 'trail')) {
-      const trail = getTrailForDate(date);
+      const weekNum0 = getWeekNumber(date);
+      const trailSession = getTrailSession(date.getDay(), weekNum0);
       session.activities.trail = {
         completed: !!comp.trail,
         label: plan?.label || null,
-        route: trail?.name || null,
-        planned_km: trail?.km ?? null,
-        planned_elevation_m: trail?.desnivel ?? null,
-        difficulty: trail?.diffLabel || null,
+        prescription: trailSession ? {
+          type: trailSession.type,
+          distance_km: trailSession.distanceKm,
+          elevation_m: trailSession.desnivelM,
+          week_type: trailSession.weekType,
+          block: trailSession.block + 1,
+        } : null,
         time_logged: dayData.time || null,
         gps: dayData.gps ? {
           km: dayData.gps.distanceKm,
